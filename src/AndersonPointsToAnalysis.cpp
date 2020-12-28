@@ -6,6 +6,10 @@
 
 namespace p2a {
 
+AndersonPointsToAnalysis::AndersonPointsToAnalysis() noexcept
+  : FlowInsensitivePointsToAnalysis { PassId }
+{ }
+
 void AndersonPointsToAnalysis::UpdateWithPointerAssignment(const PointerAssignment &assignment) {
   // TODO: Implement AndersonPointsToAnalysis::UpdateWithPointerAssignment
 }
@@ -18,6 +22,7 @@ char AndersonPointsToAnalysis::PassId;
 
 static RegisterPointsToAnalysisPass<AndersonPointsToAnalysis> X {
   "anderson-points-to",
-  "Anderson points-to analysis" };
+  "Anderson points-to analysis"
+};
 
 } // namespace p2a

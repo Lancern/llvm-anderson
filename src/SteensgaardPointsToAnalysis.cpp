@@ -6,6 +6,10 @@
 
 namespace p2a {
 
+SteensgaardPointsToAnalysis::SteensgaardPointsToAnalysis() noexcept
+  : FlowInsensitivePointsToAnalysis { PassId }
+{ }
+
 void SteensgaardPointsToAnalysis::UpdateWithPointerAssignment(const PointerAssignment &assignment) {
   // TODO: Implement SteensgaardPointsToAnalysis::UpdateWithPointerAssignment
 }

@@ -5,6 +5,8 @@
 #ifndef P2A_POINTER_ASSIGNMENT_DSL_H
 #define P2A_POINTER_ASSIGNMENT_DSL_H
 
+#include <vector>
+
 #include <llvm/IR/Value.h>
 
 namespace p2a {
@@ -17,11 +19,6 @@ enum class PointerAssignmentKind {
    * Pointer assignments with the form of `a = &b`.
    */
   PointerAssignedAddress,
-
-  /**
-   * Pointer assignments with the form of `a = b`.
-   */
-  PointerAssignedPointer,
 
   /**
    * Pointer assignment with the form of `a = *b`.
@@ -109,37 +106,52 @@ public:
 };
 
 /**
- * Pointer assignment of the form `a = b`.
+ * An index in a pointer dereference sequence.
  */
-class PointerAssignedPointer : public PointerAssignment {
+class PointerDerefIndex {
 public:
   /**
-   * Construct a new `PointerAssignedPointer` object.
-   *
-   * @param targetPointer the pointer being assigned to.
-   * @param sourcePointer the pointer being assigned from.
+   * Construct a new PointerDerefIndex object that represents a runtime-computed index.
    */
-  explicit PointerAssignedPointer(const llvm::Value* targetPointer, const llvm::Value* sourcePointer) noexcept;
+  explicit PointerDerefIndex() noexcept;
 
   /**
-   * Get the pointer being assigned to.
+   * Construct a new PointerDerefIndex object that represents a compile-time constant index.
    *
-   * @return the pointer being assigned to.
+   * @param index the index.
    */
-  const llvm::Value* targetPointer() const noexcept;
+  explicit PointerDerefIndex(size_t index) noexcept;
 
   /**
-   * Get the pointer being assigned from.
+   * Determine whether this PointerDerefIndex object represents a runtime-computed index.
    *
-   * @return the pointer being assigned from.
+   * @return whether this PointerDerefIndex object represents a runtime-computed index.
    */
-  const llvm::Value* sourcePointer() const noexcept;
+  bool isUnknown() const noexcept;
 
-  static bool classof(const PointerAssignedPointer *dsl) noexcept;
+  /**
+   * Determine whether this PointerDerefIndex object represents a compile-time constant index.
+   *
+   * @return whether this PointerDerefIndex object represents a compile-time constant index.
+   */
+  bool isConstant() const noexcept;
+
+  /**
+   * Get the compile-time constant dereference index.
+   *
+   * This function will trigger an assertion failure if this PointerDerefIndex does not represent a compile-time
+   * constant index.
+   *
+   * @return the compile-time constant dereference index.
+   */
+  size_t index() const noexcept;
+
+private:
+  size_t _index;
 };
 
 /**
- * Pointer assignment of the form `a = *b`.
+ * Pointer assignment of the form `a = &b[indexes...]`.
  */
 class PointerAssignedPointerDeref : public PointerAssignment {
 public:
@@ -147,9 +159,13 @@ public:
    * Construct a new PointerAssignedPointerDeref object.
    *
    * @param targetPointer the pointer being assigned to.
-   * @param sourcePointerPointer the pointer that points to the pointer being assigned from.
+   * @param sourcePointer the pointer that points to the pointer being assigned from.
+   * @param indexes the indexes of the deref sequence.
    */
-  explicit PointerAssignedPointerDeref(const llvm::Value* targetPointer, const llvm::Value* sourcePointerPointer) noexcept;
+  explicit PointerAssignedPointerDeref(
+      const llvm::Value *targetPointer,
+      const llvm::Value *sourcePointer,
+      std::vector<PointerDerefIndex> indexes) noexcept;
 
   /**
    * Get the pointer being assigned to.
@@ -163,9 +179,19 @@ public:
    *
    * @return the pointer that points to the pointer being assigned from.
    */
-  const llvm::Value* sourcePointerPointer() const noexcept;
+  const llvm::Value* sourcePointer() const noexcept;
 
-  static bool classof(const PointerAssignedPointer *dsl) noexcept;
+  /**
+   * Get the indexing sequence.
+   *
+   * @return the indexing sequence.
+   */
+  const std::vector<PointerDerefIndex>& indexes() const noexcept;
+
+  static bool classof(const PointerAssignment *dsl) noexcept;
+
+private:
+  std::vector<PointerDerefIndex> _indexes;
 };
 
 /**
@@ -195,7 +221,7 @@ public:
    */
   const llvm::Value* sourcePointer() const noexcept;
 
-  static bool classof(const PointerAssignedPointer *dsl) noexcept;
+  static bool classof(const PointerAssignment *dsl) noexcept;
 };
 
 } // namespace p2a

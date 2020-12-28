@@ -5,6 +5,7 @@
 #include "p2a/PointerAssignmentDSL.h"
 
 #include <cassert>
+#include <utility>
 
 #include <llvm/IR/Type.h>
 
@@ -48,46 +49,54 @@ bool PointerAssignedAddress::classof(const PointerAssignment *dsl) noexcept {
   return dsl->kind() == PointerAssignmentKind::PointerAssignedAddress;
 }
 
-PointerAssignedPointer::PointerAssignedPointer(
-    const llvm::Value *targetPointer, const llvm::Value *sourcePointer) noexcept
-    : PointerAssignment { PointerAssignmentKind::PointerAssignedPointer, targetPointer, sourcePointer }
-{
-  assert(targetPointer->getType()->isPointerTy() && "targetPointer is not a pointer");
-  assert(sourcePointer->getType()->isPointerTy() && "sourcePointer is not a pointer");
-  assert(sourcePointer->getType() == sourcePointer->getType() && "Incompatible pointer assignment");
+constexpr static const size_t UnknownPointerDerefIndex = static_cast<size_t>(-1);
+
+PointerDerefIndex::PointerDerefIndex() noexcept
+  : PointerDerefIndex { UnknownPointerDerefIndex }
+{ }
+
+PointerDerefIndex::PointerDerefIndex(size_t index) noexcept
+  : _index(index)
+{ }
+
+bool PointerDerefIndex::isUnknown() const noexcept {
+  return _index == UnknownPointerDerefIndex;
 }
 
-const llvm::Value* PointerAssignedPointer::targetPointer() const noexcept {
-  return lhs();
+bool PointerDerefIndex::isConstant() const noexcept {
+  return _index != UnknownPointerDerefIndex;
 }
 
-const llvm::Value* PointerAssignedPointer::sourcePointer() const noexcept {
-  return rhs();
-}
-
-bool PointerAssignedPointer::classof(const PointerAssignedPointer *dsl) noexcept {
-  return dsl->kind() == PointerAssignmentKind::PointerAssignedPointer;
+size_t PointerDerefIndex::index() const noexcept {
+  assert(isConstant() && "This deref index is not a constant index");
+  return _index;
 }
 
 PointerAssignedPointerDeref::PointerAssignedPointerDeref(
-    const llvm::Value *targetPointer, const llvm::Value *sourcePointerPointer) noexcept
-    : PointerAssignment { PointerAssignmentKind::PointerAssignedPointerDeref, targetPointer, sourcePointerPointer }
+    const llvm::Value *targetPointer,
+    const llvm::Value *sourcePointer,
+    std::vector<PointerDerefIndex> indexes) noexcept
+    : PointerAssignment {PointerAssignmentKind::PointerAssignedPointerDeref, targetPointer, sourcePointer },
+      _indexes(std::move(indexes))
 {
   assert(targetPointer->getType()->isPointerTy() && "targetPointer is not a pointer");
-  assert(sourcePointerPointer->getType()->isPointerTy() && "sourcePointer is not a pointer");
-  assert(sourcePointerPointer->getType()->getPointerElementType()->isPointerTy() && "sourcePointer is not a pointer to a pointer");
-  assert(targetPointer->getType() == sourcePointerPointer->getType()->getPointerElementType() && "Incompatible pointer assignment");
+  assert(sourcePointer->getType()->isPointerTy() && "sourcePointer is not a pointer");
+  // TODO: Maybe more assertion checks here to ensure every index is valid?
 }
 
 const llvm::Value* PointerAssignedPointerDeref::targetPointer() const noexcept {
   return lhs();
 }
 
-const llvm::Value* PointerAssignedPointerDeref::sourcePointerPointer() const noexcept {
+const llvm::Value* PointerAssignedPointerDeref::sourcePointer() const noexcept {
   return rhs();
 }
 
-bool PointerAssignedPointerDeref::classof(const PointerAssignedPointer *dsl) noexcept {
+const std::vector<PointerDerefIndex>& PointerAssignedPointerDeref::indexes() const noexcept {
+  return _indexes;
+}
+
+bool PointerAssignedPointerDeref::classof(const PointerAssignment *dsl) noexcept {
   return dsl->kind() == PointerAssignmentKind::PointerAssignedPointerDeref;
 }
 
@@ -109,7 +118,7 @@ const llvm::Value* PointerDerefAssignedPointer::sourcePointer() const noexcept {
   return rhs();
 }
 
-bool PointerDerefAssignedPointer::classof(const PointerAssignedPointer *dsl) noexcept {
+bool PointerDerefAssignedPointer::classof(const PointerAssignment *dsl) noexcept {
   return dsl->kind() == PointerAssignmentKind::PointerDerefAssignedPointer;
 }
 

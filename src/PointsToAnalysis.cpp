@@ -8,13 +8,11 @@
 
 namespace p2a {
 
-PointsToAnalysis::~PointsToAnalysis() noexcept = default;
-
-PointsToSet* PointsToAnalysis::GetPointsToSet(const llvm::Value *pointer) noexcept {
-  return const_cast<PointsToSet *>(const_cast<const PointsToAnalysis *>(this)->GetPointsToSet(pointer));
+PointeeSet* PointsToAnalysis::GetPointsToSet(const llvm::Value *pointer) noexcept {
+  return const_cast<PointeeSet *>(const_cast<const PointsToAnalysis *>(this)->GetPointsToSet(pointer));
 }
 
-const PointsToSet* PointsToAnalysis::GetPointsToSet(const llvm::Value *pointer) const noexcept {
+const PointeeSet* PointsToAnalysis::GetPointsToSet(const llvm::Value *pointer) const noexcept {
   assert(pointer->getType()->isPointerTy() && "The given value is not a pointer");
   auto it = _pointeeSets.find(pointer);
   if (it != _pointeeSets.end()) {

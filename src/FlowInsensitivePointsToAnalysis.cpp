@@ -4,26 +4,23 @@
 
 #include "p2a/PointsToAnalysis.h"
 
-#include <memory>
+#include "PointerAssignmentDSLConverter.h"
 
 namespace p2a {
 
-namespace {
-
-std::unique_ptr<PointerAssignment> GetPointerAssignmentDSL(const llvm::Instruction &instruction) noexcept {
-  // TODO: Implement GetPointerAssignmentDSL.
-  return nullptr;
-}
-
-} // namespace <anonymous>
+FlowInsensitivePointsToAnalysis::FlowInsensitivePointsToAnalysis(char &id) noexcept
+  : PointsToAnalysis { id }
+{ }
 
 bool FlowInsensitivePointsToAnalysis::runOnModule(llvm::Module &module) {
   for (const auto& func : module) {
     for (const auto& bb : func) {
       for (const auto& instr : bb) {
-        auto dsl = GetPointerAssignmentDSL(instr);
-        if (dsl) {
-          UpdateWithPointerAssignment(*dsl);
+        auto dslList = GetPointerAssignmentDSL(instr);
+        for (const auto& dsl : dslList) {
+          if (dsl) {
+            UpdateWithPointerAssignment(*dsl);
+          }
         }
       }
     }
