@@ -95,6 +95,11 @@ protected:
 class AndersonPointsToAnalysis : public FlowInsensitivePointsToAnalysis {
 public:
   /**
+   * Identifier of this analysis pass.
+   */
+  static char ID;
+
+  /**
    * Construct a new AndersonPointsToAnalysis object.
    */
   explicit AndersonPointsToAnalysis() noexcept;
@@ -103,9 +108,6 @@ protected:
   void UpdateWithPointerAssignment(const PointerAssignment &assignment) final;
 
   void FinishUpdate() final;
-
-private:
-  static char PassId;
 };
 
 /**
@@ -113,6 +115,11 @@ private:
  */
 class SteensgaardPointsToAnalysis : public FlowInsensitivePointsToAnalysis {
 public:
+  /**
+   * Identifier of this analysis pass.
+   */
+  static char ID;
+
   /**
    * Construct a new SteensgaardPointsToAnalysis object.
    */
@@ -122,9 +129,6 @@ protected:
   void UpdateWithPointerAssignment(const PointerAssignment &assignment) final;
 
   void FinishUpdate() final;
-
-private:
-  static char PassId;
 };
 
 template <typename AnalysisPass>

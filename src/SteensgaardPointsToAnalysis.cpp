@@ -6,8 +6,10 @@
 
 namespace p2a {
 
+char SteensgaardPointsToAnalysis::ID;
+
 SteensgaardPointsToAnalysis::SteensgaardPointsToAnalysis() noexcept
-  : FlowInsensitivePointsToAnalysis { PassId }
+  : FlowInsensitivePointsToAnalysis { ID }
 { }
 
 void SteensgaardPointsToAnalysis::UpdateWithPointerAssignment(const PointerAssignment &assignment) {
@@ -17,8 +19,6 @@ void SteensgaardPointsToAnalysis::UpdateWithPointerAssignment(const PointerAssig
 void SteensgaardPointsToAnalysis::FinishUpdate() {
   // TODO: Implement SteensgaardPointsToAnalysis::FinishUpdate
 }
-
-char SteensgaardPointsToAnalysis::PassId;
 
 static RegisterPointsToAnalysisPass<SteensgaardPointsToAnalysis> X {
   "steensgaard-points-to",

@@ -36,9 +36,10 @@ struct PointerAssignmentDSLConverter<llvm::GetElementPtrInst> {
       }
     }
 
-    return {
-      std::make_unique<PointerAssignedPointerDeref>(&instr, instr.getPointerOperand(), std::move(derefSequence))
-    };
+    std::vector<std::unique_ptr<PointerAssignment>> dsl;
+    dsl.push_back(
+        std::make_unique<PointerAssignedPointerDeref>(&instr, instr.getPointerOperand(), std::move(derefSequence)));
+    return dsl;
   }
 };
 
@@ -52,10 +53,11 @@ struct PointerAssignmentDSLConverter<llvm::LoadInst> {
     auto sourcePointer = instr.getOperand(0);
     assert(sourcePointer->getType()->getPointerElementType()->isPointerTy() && "Load operand is not a pointer to a pointer");
 
-    return {
-      std::make_unique<PointerAssignedPointerDeref>(
-          &instr, sourcePointer, std::vector<PointerDerefIndex> { PointerDerefIndex { 0 } }),
-    };
+    std::vector<std::unique_ptr<PointerAssignment>> dsl;
+    dsl.push_back(
+        std::make_unique<PointerAssignedPointerDeref>(
+            &instr, sourcePointer, std::vector<PointerDerefIndex> { PointerDerefIndex { 0 } }));
+    return dsl;
   }
 };
 
@@ -68,9 +70,9 @@ struct PointerAssignmentDSLConverter<llvm::StoreInst> {
       return { };
     }
 
-    return {
-      std::make_unique<PointerDerefAssignedPointer>(targetPointer, sourceValue),
-    };
+    std::vector<std::unique_ptr<PointerAssignment>> dsl;
+    dsl.push_back(std::make_unique<PointerDerefAssignedPointer>(targetPointer, sourceValue));
+    return dsl;
   }
 };
 
@@ -79,7 +81,7 @@ struct PointerAssignmentDSLConverter<llvm::StoreInst> {
 std::vector<std::unique_ptr<PointerAssignment>> GetPointerAssignmentDSL(const llvm::Instruction &instr) noexcept {
 #define DISPATCH_CONVERTER(inst) \
   if (llvm::isa<llvm::inst>(instr)) { \
-    return PointerAssignmentDSLConverter<llvm::inst>::GetDSL(llvm::dyn_cast<llvm::inst>(instr)); \
+    return PointerAssignmentDSLConverter<llvm::inst>::GetDSL(llvm::cast<llvm::inst>(instr)); \
   }
 LLVM_POINTER_INST_LIST(DISPATCH_CONVERTER)
 #undef DISPATCH_CONVERTER
