@@ -14,3 +14,7 @@ include_directories(${LLVM_INCLUDE_DIRS} "${P2A_INCLUDE_DIR}")
 add_definitions(${LLVM_DEFINITIONS})
 
 add_subdirectory(src)
+
+add_custom_target(doxygen
+        doxygen
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
