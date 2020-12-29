@@ -6,6 +6,7 @@
 #define P2A_POINTS_TO_ANALYSIS_H
 
 #include <cstddef>
+#include <map>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
@@ -292,6 +293,163 @@ private:
   const llvm::Type *_type;
   std::unordered_set<const Pointee *> _pointees;
 }; // class PointeeSet
+
+/**
+ * Represent a pointer value somewhere in the module.
+ */
+class Pointer {
+public:
+  using Iterator = typename std::map<size_t, Pointer>::iterator;
+
+  using ConstIterator = typename std::map<size_t, Pointer>::const_iterator;
+
+  /**
+   * Construct a new Pointer object that represents the specified pointer value.
+   *
+   * @param pointerValue the pointer value.
+   */
+  explicit Pointer(const llvm::Value *pointerValue) noexcept;
+
+  /**
+   * Construct a new Pointer object that represents a pointer value that is pointed to by the specified pointer value
+   * with the specified offset.
+   *
+   * @param type the type of the pointer value.
+   * @param parent the parent pointer value.
+   * @param offset the offset relative to the parent pointer's pointee.
+   */
+  explicit Pointer(const llvm::Type *type, Pointer *parent, size_t offset) noexcept;
+
+  /**
+   * Determine whether this pointer value is a root pointer, i.e. a pointer that have been materialized into a
+   * `llvm::Value`.
+   *
+   * @return whether this pointer value is a root pointer.
+   */
+  bool isRoot() const noexcept;
+
+  /**
+   * Get the type of the pointer itself.
+   *
+   * @return the type of the pointer itself.
+   */
+  const llvm::Type* pointerType() const noexcept;
+
+  /**
+   * Get the type of the pointee object.
+   *
+   * @return the type of the pointee object.
+   */
+  const llvm::Type* pointeeType() const noexcept;
+
+  /**
+   * Get the `llvm::Value` object that represents the materialized pointer.
+   *
+   * @return the `llvm::Value` object that represents the materialized pointer. If this pointer value is not a root
+   * pointer, returns nullptr.
+   */
+  const llvm::Value* pointerValue() const noexcept;
+
+  /**
+   * Get the parent pointer.
+   *
+   * @return the parent pointer.
+   */
+  const Pointer* parent() const noexcept;
+
+  /**
+   * Get the offset of this pointer within the pointee object of the parent pointer.
+   *
+   * @return the offset of this pointer within the pointee object of the parent pointer.
+   */
+  size_t offset() const noexcept;
+
+  /**
+   * Determine whether the pointee is a pointer.
+   *
+   * @return whether the pointee is a pointer.
+   */
+  bool isPointeePointer() const noexcept;
+
+  /**
+   * Determine whether the pointee is a pointer array.
+   *
+   * @return whether the pointee is a pointer array.
+   */
+  bool isPointeePointerArray() const noexcept;
+
+  /**
+   * Determine whether the pointee is a struct.
+   *
+   * @return whether the pointee is a struct.
+   */
+  bool isPointeeStruct() const noexcept;
+
+  /**
+   * Get the root pointer from which this pointer can be accessed by a sequence of dereference operations.
+   *
+   * @return the root pointer.
+   */
+  Pointer* GetRootPointer() noexcept;
+
+  /**
+   * Get the root pointer from which this pointer can be accessed by a sequence of dereference operations.
+   *
+   * @return the root pointer.
+   */
+  const Pointer* GetRootPointer() const noexcept;
+
+  /**
+   * Determine whether this pointer might refers to any pointers.
+   *
+   * This function effectively determines whether the pointee is either:
+   * - a pointer;
+   * - a pointer array;
+   * - a struct.
+   *
+   * @return whether this pointer might refers to any pointers.
+   */
+  bool hasChildren() const noexcept;
+
+  /**
+   * Get the child pointer that can be acquired by a single dereference operation with the specified index.
+   *
+   * @param index the dereference index.
+   * @return the pointer at the specified dereference index.
+   */
+  Pointer& GetChild(size_t index) noexcept;
+
+  /**
+   * Get the child pointer that can be acquired by a single dereference operation with the specified index.
+   *
+   * @param index the dereference index.
+   * @return the pointer at the specified dereference index.
+   */
+  const Pointer& GetChild(size_t index) const noexcept;
+
+  /**
+   * Get all child pointers.
+   *
+   * @return an iterator range that contains all child pointers.
+   */
+  llvm::iterator_range<Iterator> children() noexcept;
+
+  /**
+   * Get all child pointers.
+   *
+   * @return an iterator range that contains all child pointers.
+   */
+  llvm::iterator_range<ConstIterator> children() const noexcept;
+
+private:
+  const llvm::Type *_pointerType;
+  const llvm::Value *_value;
+  Pointer *_parent;
+  size_t _offset;
+  std::map<size_t, Pointer> _children;
+
+  void InitializeChildren() noexcept;
+};
 
 /**
  * Provide abstract base class for points-to analysis.

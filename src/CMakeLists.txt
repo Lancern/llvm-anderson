@@ -6,6 +6,7 @@ add_library(p2a MODULE
         FlowInsensitivePointsToAnalysis.cpp
         Pointee.cpp
         PointeeSet.cpp
+        Pointer.cpp
         PointerAssignmentDSL.cpp
         PointerAssignmentDSLConverter.cpp
         PointerAssignmentDSLConverter.h
