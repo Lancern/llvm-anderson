@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include <llvm/ADT/iterator_range.h>
 #include <llvm/IR/GlobalObject.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
@@ -237,7 +238,59 @@ private:
  * The set of all possible pointees of a pointer.
  */
 class PointeeSet {
-  // TODO: Implement class PointeeSet
+public:
+  using Iterator = typename std::unordered_set<const Pointee *>::const_iterator;
+
+  /**
+   * Construct a new PointeeSet object.
+   *
+   * @param type type of the pointee object.
+   */
+  explicit PointeeSet(const llvm::Type *type) noexcept;
+
+  /**
+   * Get the type of the pointees contained in this pointee set.
+   *
+   * @return the type of the pointees.
+   */
+  const llvm::Type* type() const noexcept;
+
+  /**
+   * Get the number of pointees contained in this PointeeSet object.
+   *
+   * @return the number of pointees contained in this PointeeSet object.
+   */
+  size_t size() const noexcept;
+
+  /**
+   * Get an iterator range into all contained pointees in this set.
+   */
+  llvm::iterator_range<Iterator> pointees() const noexcept;
+
+  /**
+   * Add the specified pointee object into this pointee set.
+   *
+   * @param pointee the pointee object.
+   */
+  void Add(const Pointee *pointee) noexcept;
+
+  /**
+   * Merge all pointee objects contained in this pointee set into the specified set.
+   *
+   * @param target the target pointee set.
+   */
+  void MergeTo(PointeeSet &target) const noexcept;
+
+  /**
+   * Merge all pointee objects from the specified pointee set.
+   *
+   * @param source the source pointee set.
+   */
+  void MergeFrom(const PointeeSet &source) noexcept;
+
+private:
+  const llvm::Type *_type;
+  std::unordered_set<const Pointee *> _pointees;
 }; // class PointeeSet
 
 /**

@@ -5,6 +5,7 @@ add_library(p2a MODULE
         Anderson/AndersonPointsToGraph.h
         FlowInsensitivePointsToAnalysis.cpp
         Pointee.cpp
+        PointeeSet.cpp
         PointerAssignmentDSL.cpp
         PointerAssignmentDSLConverter.cpp
         PointerAssignmentDSLConverter.h
