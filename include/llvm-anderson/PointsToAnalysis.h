@@ -2,8 +2,8 @@
 // Created by Sirui Mu on 2020/12/26.
 //
 
-#ifndef P2A_POINTS_TO_ANALYSIS_H
-#define P2A_POINTS_TO_ANALYSIS_H
+#ifndef LLVM_ANDERSON_POINTS_TO_ANALYSIS_H
+#define LLVM_ANDERSON_POINTS_TO_ANALYSIS_H
 
 #include <cstddef>
 #include <map>
@@ -18,7 +18,9 @@
 #include <llvm/IR/Value.h>
 #include <llvm/Pass.h>
 
-namespace p2a {
+namespace llvm {
+
+namespace anderson {
 
 /**
  * The pointee object of a pointer.
@@ -455,6 +457,8 @@ class AndersonPointsToAnalysis : public llvm::ModulePass {
   // TODO: Implement class AndersonPointsToAnalysis.
 };
 
-} // namespace p2a
+} // namespace anderson
 
-#endif // P2A_POINTS_TO_ANALYSIS_H
+} // namespace llvm
+
+#endif // LLVM_ANDERSON_POINTS_TO_ANALYSIS_H

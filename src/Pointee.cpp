@@ -2,40 +2,40 @@
 // Created by Sirui Mu on 2020/12/29.
 //
 
-#include "p2a/PointsToAnalysis.h"
+#include "llvm-anderson/PointsToAnalysis.h"
 
 #include <cassert>
 
 #include <llvm/Support/Casting.h>
 
-namespace p2a {
+namespace llvm {
+
+namespace anderson {
 
 bool Pointee::IsRootValue(const llvm::Value *value) noexcept {
   assert(value && "value cannot be null");
 
   return llvm::isa<llvm::GlobalObject>(value) ||
-      llvm::isa<llvm::AllocaInst>(value);
+         llvm::isa<llvm::AllocaInst>(value);
 }
 
-Pointee::Pointee(const llvm::Type* type) noexcept
-  : _type(type),
-    _value(nullptr),
-    _parent(nullptr),
-    _offset(InvalidOffset),
-    _children()
-{
+Pointee::Pointee(const llvm::Type *type) noexcept
+    : _type(type),
+      _value(nullptr),
+      _parent(nullptr),
+      _offset(InvalidOffset),
+      _children() {
   assert(type && "type cannot be null");
 
   InitializeChildren();
 }
 
 Pointee::Pointee(const llvm::Value *value) noexcept
-  : _type(nullptr),
-    _value(value),
-    _parent(nullptr),
-    _offset(InvalidOffset),
-    _children()
-{
+    : _type(nullptr),
+      _value(value),
+      _parent(nullptr),
+      _offset(InvalidOffset),
+      _children() {
   assert(IsRootValue(value) && "value cannot serve as a valid root pointee object");
 
   if (llvm::isa<llvm::GlobalObject>(value)) {
@@ -54,36 +54,33 @@ Pointee::Pointee(const llvm::Value *value) noexcept
 }
 
 Pointee::Pointee(const llvm::GlobalObject *globalObject) noexcept
-  : _type(globalObject->getValueType()),
-    _value(globalObject),
-    _parent(nullptr),
-    _offset(InvalidOffset),
-    _children()
-{
+    : _type(globalObject->getValueType()),
+      _value(globalObject),
+      _parent(nullptr),
+      _offset(InvalidOffset),
+      _children() {
   assert(globalObject && "globalObject cannot be null");
 
   InitializeChildren();
 }
 
 Pointee::Pointee(const llvm::AllocaInst *allocaInst) noexcept
-  : _type(allocaInst->getAllocatedType()),
-    _value(allocaInst),
-    _parent(nullptr),
-    _offset(InvalidOffset),
-    _children()
-{
+    : _type(allocaInst->getAllocatedType()),
+      _value(allocaInst),
+      _parent(nullptr),
+      _offset(InvalidOffset),
+      _children() {
   assert(allocaInst && "allocaInst cannot be null");
 
   InitializeChildren();
 }
 
 Pointee::Pointee(const llvm::Type *type, const Pointee *parent, size_t offset) noexcept
-  : _type(type),
-    _value(nullptr),
-    _parent(parent),
-    _offset(offset),
-    _children()
-{
+    : _type(type),
+      _value(nullptr),
+      _parent(parent),
+      _offset(offset),
+      _children() {
   assert(type && "type cannot be null");
   assert(parent && "parent cannot be null");
   assert(offset != InvalidOffset && "Invalid offset");
@@ -95,7 +92,7 @@ Pointee::Pointee(Pointee &&) noexcept { // NOLINT(cppcoreguidelines-pro-type-mem
   assert(false && "Move constructor of Pointee should not be used");
 }
 
-Pointee& Pointee::operator=(Pointee &&) noexcept {
+Pointee &Pointee::operator=(Pointee &&) noexcept {
   assert(false && "Move assignment operator of Pointee should not be used");
 }
 
@@ -146,11 +143,11 @@ bool Pointee::isAlloca() const noexcept {
   return llvm::isa<llvm::AllocaInst>(_value);
 }
 
-const llvm::Type* Pointee::type() const noexcept {
+const llvm::Type *Pointee::type() const noexcept {
   return _type;
 }
 
-const llvm::GlobalObject* Pointee::globalObject() const noexcept {
+const llvm::GlobalObject *Pointee::globalObject() const noexcept {
   if (!isRoot()) {
     return _parent->globalObject();
   }
@@ -158,7 +155,7 @@ const llvm::GlobalObject* Pointee::globalObject() const noexcept {
   return llvm::cast<llvm::GlobalVariable>(_value);
 }
 
-const llvm::AllocaInst* Pointee::allocaInst() const noexcept {
+const llvm::AllocaInst *Pointee::allocaInst() const noexcept {
   if (!isAlloca()) {
     return _parent->allocaInst();
   }
@@ -166,7 +163,7 @@ const llvm::AllocaInst* Pointee::allocaInst() const noexcept {
   return llvm::cast<llvm::AllocaInst>(_value);
 }
 
-const Pointee* Pointee::parent() const noexcept {
+const Pointee *Pointee::parent() const noexcept {
   return _parent;
 }
 
@@ -174,7 +171,7 @@ size_t Pointee::offset() const noexcept {
   return _offset;
 }
 
-const Pointee* Pointee::root() const noexcept {
+const Pointee *Pointee::root() const noexcept {
   if (isRoot()) {
     return this;
   }
@@ -201,7 +198,7 @@ size_t Pointee::GetNumChildren() const noexcept {
   return _children.size();
 }
 
-const Pointee& Pointee::GetChild(size_t i) const noexcept {
+const Pointee &Pointee::GetChild(size_t i) const noexcept {
   assert(i >= 0 && i < _children.size() && "i is out of range");
   return _children[i];
 }
@@ -229,4 +226,6 @@ void Pointee::InitializeChildren() noexcept {
   }
 }
 
-} // namespace p2a
+} // namespace anderson
+
+} // namespace llvm

@@ -2,18 +2,19 @@
 // Created by Sirui Mu on 2020/12/29.
 //
 
-#include "p2a/PointsToAnalysis.h"
+#include "llvm-anderson/PointsToAnalysis.h"
 
 #include <cassert>
 
-namespace p2a {
+namespace llvm {
+
+namespace anderson {
 
 PointeeSet::PointeeSet(const llvm::Type *type) noexcept
-  : _type(type),
-    _pointees()
-{ }
+    : _type(type),
+      _pointees() {}
 
-const llvm::Type* PointeeSet::type() const noexcept {
+const llvm::Type *PointeeSet::type() const noexcept {
   return _type;
 }
 
@@ -22,7 +23,7 @@ size_t PointeeSet::size() const noexcept {
 }
 
 auto PointeeSet::pointees() const noexcept -> llvm::iterator_range<Iterator> {
-  return llvm::iterator_range<Iterator> { _pointees.cbegin(), _pointees.cend() };
+  return llvm::iterator_range<Iterator>{_pointees.cbegin(), _pointees.cend()};
 }
 
 void PointeeSet::Add(const Pointee *pointee) noexcept {
@@ -41,4 +42,6 @@ void PointeeSet::MergeFrom(const PointeeSet &source) noexcept {
   source.MergeTo(*this);
 }
 
-} // namespace p2a
+} // namespace anderson
+
+} // namespace llvm

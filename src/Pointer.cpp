@@ -2,19 +2,20 @@
 // Created by Sirui Mu on 2020/12/29.
 //
 
-#include "p2a/PointsToAnalysis.h"
+#include "llvm-anderson/PointsToAnalysis.h"
 
 #include <cassert>
 
-namespace p2a {
+namespace llvm {
+
+namespace anderson {
 
 Pointer::Pointer(const llvm::Value *pointerValue) noexcept
-  : _pointerType(pointerValue->getType()),
-    _value(pointerValue),
-    _parent(nullptr),
-    _offset(0),
-    _children()
-{
+    : _pointerType(pointerValue->getType()),
+      _value(pointerValue),
+      _parent(nullptr),
+      _offset(0),
+      _children() {
   assert(pointerValue && "pointerValue cannot be null");
   assert(_pointerType->isPointerTy() && "The specified value is not a pointer value");
 
@@ -22,12 +23,11 @@ Pointer::Pointer(const llvm::Value *pointerValue) noexcept
 }
 
 Pointer::Pointer(const llvm::Type *type, Pointer *parent, size_t offset) noexcept
-  : _pointerType(type),
-    _value(nullptr),
-    _parent(parent),
-    _offset(0),
-    _children()
-{
+    : _pointerType(type),
+      _value(nullptr),
+      _parent(parent),
+      _offset(0),
+      _children() {
   assert(type && "type cannot be null");
   assert(parent && "parent cannot be null");
   assert(type->isPointerTy() && "The specified type is not a pointer type");
@@ -39,19 +39,19 @@ bool Pointer::isRoot() const noexcept {
   return _parent == nullptr;
 }
 
-const llvm::Type* Pointer::pointerType() const noexcept {
+const llvm::Type *Pointer::pointerType() const noexcept {
   return _pointerType;
 }
 
-const llvm::Type* Pointer::pointeeType() const noexcept {
+const llvm::Type *Pointer::pointeeType() const noexcept {
   return _pointerType->getPointerElementType();
 }
 
-const llvm::Value* Pointer::pointerValue() const noexcept {
+const llvm::Value *Pointer::pointerValue() const noexcept {
   return _value;
 }
 
-const Pointer* Pointer::parent() const noexcept {
+const Pointer *Pointer::parent() const noexcept {
   return _parent;
 }
 
@@ -71,14 +71,14 @@ bool Pointer::isPointeeStruct() const noexcept {
   return pointeeType()->isStructTy();
 }
 
-Pointer* Pointer::GetRootPointer() noexcept {
+Pointer *Pointer::GetRootPointer() noexcept {
   if (isRoot()) {
     return this;
   }
   return _parent->GetRootPointer();
 }
 
-const Pointer* Pointer::GetRootPointer() const noexcept {
+const Pointer *Pointer::GetRootPointer() const noexcept {
   return const_cast<Pointer *>(this)->GetRootPointer();
 }
 
@@ -86,20 +86,20 @@ bool Pointer::hasChildren() const noexcept {
   return isPointeePointer() || isPointeePointerArray() || isPointeeStruct();
 }
 
-Pointer& Pointer::GetChild(size_t index) noexcept {
+Pointer &Pointer::GetChild(size_t index) noexcept {
   return _children.at(index);
 }
 
-const Pointer& Pointer::GetChild(size_t index) const noexcept {
+const Pointer &Pointer::GetChild(size_t index) const noexcept {
   return _children.at(index);
 }
 
 auto Pointer::children() noexcept -> llvm::iterator_range<Iterator> {
-  return llvm::iterator_range<Iterator> { _children.begin(), _children.end() };
+  return llvm::iterator_range<Iterator>{_children.begin(), _children.end()};
 }
 
 auto Pointer::children() const noexcept -> llvm::iterator_range<ConstIterator> {
-  return llvm::iterator_range<ConstIterator> { _children.cbegin(), _children.cend() };
+  return llvm::iterator_range<ConstIterator>{_children.cbegin(), _children.cend()};
 }
 
 void Pointer::InitializeChildren() noexcept {
@@ -138,4 +138,6 @@ void Pointer::InitializeChildren() noexcept {
   }
 }
 
-} // namespace p2a
+} // namespace anderson
+
+} // namespace llvm
