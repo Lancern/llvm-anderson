@@ -1,11 +1,9 @@
-# p2a
+# LLVM-Anderson
 
-This project implements the two famous
+This project implements the famous flow-insensitive
 [points-to analysis](https://en.wikipedia.org/wiki/Pointer_analysis)
-algorithms, namely 
-[Anderson algorithm](https://en.wikipedia.org/w/index.php?title=Andersen%27s_algorithm&action=edit&redlink=1)
-and 
-[Steensgaard algorithm](https://en.wikipedia.org/wiki/Steensgaard%27s_algorithm),
+algorithm, namely 
+[Anderson algorithm](https://en.wikipedia.org/w/index.php?title=Andersen%27s_algorithm&action=edit&redlink=1),
 on the LLVM compiler platform.
 
 ## Build
