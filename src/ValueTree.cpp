@@ -18,6 +18,9 @@ ValueTree::ValueTree(const llvm::Module &module) noexcept
 
   for (const auto &func : module) {
     _roots[&func] = std::make_unique<ValueTreeNode>(&func);
+    for (const auto &arg : func.args()) {
+      _roots[&arg] = std::make_unique<ValueTreeNode>(&arg);
+    }
     for (const auto &bb : func) {
       for (const auto &inst : bb) {
         _roots[&inst] = std::make_unique<ValueTreeNode>(&inst);

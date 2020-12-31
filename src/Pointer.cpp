@@ -17,7 +17,9 @@ bool Pointer::classof(const Pointee *obj) noexcept {
 Pointer::Pointer(ValueTreeNode &node) noexcept
   : Pointee { node },
     _pointsTo(),
-    _pointsToPointeesOf()
+    _pointsToPointeesOf(),
+    _pointsToPointeesOfPointeesOf(),
+    _pointeePointsToPointeesOf()
 { }
 
 void Pointer::AddPointsTo(Pointee *pointee) noexcept {
@@ -25,9 +27,19 @@ void Pointer::AddPointsTo(Pointee *pointee) noexcept {
   _pointsTo.emplace(pointee);
 }
 
-void Pointer::AddPointsToPointeesOf(Pointer *anotherPointer) noexcept {
-  assert(anotherPointer && "anotherPointer cannot be null");
-  _pointsToPointeesOf.emplace(anotherPointer);
+void Pointer::AddPointsToPointeesOf(Pointer *pointer) noexcept {
+  assert(pointer && "pointer cannot be null");
+  _pointsToPointeesOf.emplace(pointer);
+}
+
+void Pointer::AddPointsToPointeesOfPointeesOf(Pointer *pointer) noexcept {
+  assert(pointer && "pointer cannot be null");
+  _pointsToPointeesOfPointeesOf.emplace(pointer);
+}
+
+void Pointer::AddPointeePointsToPointeesOf(Pointer *pointer) noexcept {
+  assert(pointer && "pointer cannot be null");
+  _pointeePointsToPointeesOf.emplace(pointer);
 }
 
 } // namespace anderson

@@ -57,22 +57,22 @@ private:
 
 struct PointsToHasher {
   size_t operator()(const PointsTo &e) const noexcept {
-    return std::hash<const Pointee *> { }(e._pointee);
+    return std::hash<Pointee *> { }(e._pointee);
   }
 };
 
 class PointsToPointeesOf {
 public:
-  explicit PointsToPointeesOf(Pointer *anotherPointer) noexcept
-    : _anotherPointer(anotherPointer)
+  explicit PointsToPointeesOf(Pointer *pointer) noexcept
+    : _pointer(pointer)
   { }
 
-  Pointer* pointer() noexcept { return _anotherPointer; }
+  Pointer* pointer() noexcept { return _pointer; }
 
-  const Pointer* pointer() const noexcept { return _anotherPointer; }
+  const Pointer* pointer() const noexcept { return _pointer; }
 
   bool operator==(const PointsToPointeesOf &rhs) const noexcept {
-    return _anotherPointer == rhs._anotherPointer;
+    return _pointer == rhs._pointer;
   }
 
   bool operator!=(const PointsToPointeesOf &rhs) const noexcept {
@@ -82,12 +82,72 @@ public:
   friend struct PointsToPointeesOfHasher;
 
 private:
-  Pointer *_anotherPointer;
+  Pointer *_pointer;
 };
 
 struct PointsToPointeesOfHasher {
   size_t operator()(const PointsToPointeesOf &e) const noexcept {
-    return std::hash<const Pointer *> { }(e._anotherPointer);
+    return std::hash<Pointer *> { }(e._pointer);
+  }
+};
+
+class PointsToPointeesOfPointeesOf {
+public:
+  explicit PointsToPointeesOfPointeesOf(Pointer *pointer) noexcept
+    : _pointer(pointer)
+  { }
+
+  Pointer *pointer() noexcept { return _pointer; }
+
+  const Pointer* pointer() const noexcept { return _pointer; }
+
+  bool operator==(const PointsToPointeesOfPointeesOf &rhs) const noexcept {
+    return _pointer == rhs._pointer;
+  }
+
+  bool operator!=(const PointsToPointeesOfPointeesOf &rhs) const noexcept {
+    return !operator==(rhs);
+  }
+
+  friend class PointsToPointeesOfPointeesOfHasher;
+
+private:
+  Pointer *_pointer;
+};
+
+struct PointsToPointeesOfPointeesOfHasher {
+  size_t operator()(const PointsToPointeesOfPointeesOf &pt) const noexcept {
+    return std::hash<Pointer *> { }(pt._pointer);
+  }
+};
+
+class PointeePointsToPointeesOf {
+public:
+  explicit PointeePointsToPointeesOf(Pointer *pointer) noexcept
+    : _pointer(pointer)
+  { }
+
+  Pointer* pointer() noexcept { return _pointer; }
+
+  const Pointer* pointer() const noexcept { return _pointer; }
+
+  bool operator==(const PointeePointsToPointeesOf &rhs) const noexcept {
+    return _pointer == rhs._pointer;
+  }
+
+  bool operator!=(const PointeePointsToPointeesOf &rhs) const noexcept {
+    return !operator==(rhs);
+  }
+
+  friend struct PointeePointsToPointeesOfHasher;
+
+private:
+  Pointer *_pointer;
+};
+
+struct PointeePointsToPointeesOfHasher {
+  size_t operator()(const PointeePointsToPointeesOf &pt) const noexcept {
+    return std::hash<Pointer *> { }(pt._pointer);
   }
 };
 
@@ -119,11 +179,17 @@ public:
 
   void AddPointsTo(Pointee *pointee) noexcept;
 
-  void AddPointsToPointeesOf(Pointer *anotherPointer) noexcept;
+  void AddPointsToPointeesOf(Pointer *pointer) noexcept;
+
+  void AddPointsToPointeesOfPointeesOf(Pointer *pointer) noexcept;
+
+  void AddPointeePointsToPointeesOf(Pointer *pointer) noexcept;
 
 private:
   std::unordered_set<PointsTo, PointsToHasher> _pointsTo;
   std::unordered_set<PointsToPointeesOf, PointsToPointeesOfHasher> _pointsToPointeesOf;
+  std::unordered_set<PointsToPointeesOfPointeesOf, PointsToPointeesOfPointeesOfHasher> _pointsToPointeesOfPointeesOf;
+  std::unordered_set<PointeePointsToPointeesOf, PointeePointsToPointeesOfHasher> _pointeePointsToPointeesOf;
 };
 
 class ValueTreeNode {
@@ -229,7 +295,7 @@ public:
   const ValueTree* GetValueTree() const noexcept;
 
 private:
-  std::unique_ptr<PointsToSolver> _graphBuilder;
+  std::unique_ptr<PointsToSolver> _solver;
 };
 
 } // namespace anderson
