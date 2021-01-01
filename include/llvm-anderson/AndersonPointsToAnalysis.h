@@ -989,6 +989,14 @@ private:
   std::unique_ptr<PointsToSolver> _solver;
 };
 
+bool Pointee::isPointer() const noexcept {
+  return _node.isPointer();
+}
+
+bool Pointee::isExternal() const noexcept {
+  return _node.isExternal();
+}
+
 } // namespace anderson
 
 } // namespace llvm
