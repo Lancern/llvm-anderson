@@ -8,13 +8,16 @@
 #ifndef LLVM_ANDERSON_POINTS_TO_ANALYSIS_H
 #define LLVM_ANDERSON_POINTS_TO_ANALYSIS_H
 
+#include <cassert>
 #include <cstddef>
 #include <functional>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
+#include <llvm/ADT/iterator_range.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
 #include <llvm/IR/Value.h>
@@ -30,120 +33,134 @@ namespace llvm {
 
 namespace anderson {
 
+namespace details {
+
+template <typename T>
+struct PolymorphicHasher {
+  size_t operator()(const T &obj) const noexcept {
+    return obj.GetHashCode();
+  }
+};
+
+} // namespace details
+
 class Pointee;
 class Pointer;
 class ValueTreeNode;
 
-class PointsTo {
-public:
-  struct Hash {
-    size_t operator()(const PointsTo &e) const noexcept {
-      return std::hash<Pointee *> { }(e._pointee);
-    }
-  };
-
-  explicit PointsTo(Pointee *pointee) noexcept
-    : _pointee(pointee)
-  { }
-
-  Pointee* pointee() noexcept { return _pointee; }
-
-  const Pointee* pointee() const noexcept { return _pointee; }
-
-  bool operator==(const PointsTo &rhs) const noexcept {
-    return _pointee == rhs._pointee;
-  }
-
-  bool operator!=(const PointsTo &rhs) const noexcept {
-    return !operator==(rhs);
-  }
-
-private:
-  Pointee *_pointee;
+enum class PointerAssignmentKind {
+  AssignedElementPtr,
+  AssignedPointee,
+  PointeeAssigned,
 };
 
-class PointsToPointeesOf {
+class PointerAssignment {
 public:
-  struct Hash {
-    size_t operator()(const PointsToPointeesOf &e) const noexcept {
-      return std::hash<Pointer *> { }(e._pointer);
-    }
-  };
-
-  explicit PointsToPointeesOf(Pointer *pointer) noexcept
-    : _pointer(pointer)
-  { }
+  PointerAssignmentKind kind() const noexcept { return _kind; }
 
   Pointer* pointer() noexcept { return _pointer; }
 
   const Pointer* pointer() const noexcept { return _pointer; }
 
-  bool operator==(const PointsToPointeesOf &rhs) const noexcept {
-    return _pointer == rhs._pointer;
-  }
+  virtual size_t GetHashCode() const noexcept;
 
-  bool operator!=(const PointsToPointeesOf &rhs) const noexcept {
+  virtual bool operator==(const PointerAssignment &rhs) const noexcept;
+
+  virtual bool operator!=(const PointerAssignment &rhs) const noexcept {
     return !operator==(rhs);
   }
 
+protected:
+  explicit PointerAssignment(PointerAssignmentKind kind, Pointer *pointer) noexcept
+    : _kind(kind),
+      _pointer(pointer)
+  {
+    assert(pointer && "pointer cannot be null");
+  }
+
+  virtual ~PointerAssignment() noexcept = default;
+
 private:
+  PointerAssignmentKind _kind;
   Pointer *_pointer;
 };
 
-class PointsToPointeesOfPointeesOf {
+class PointerIndex {
 public:
-  struct Hash {
-    size_t operator()(const PointsToPointeesOfPointeesOf &pt) const noexcept {
-      return std::hash<Pointer *> { }(pt._pointer);
-    }
-  };
+  constexpr static const size_t DynamicIndex = static_cast<size_t>(-1);
 
-  explicit PointsToPointeesOfPointeesOf(Pointer *pointer) noexcept
-    : _pointer(pointer)
+  explicit PointerIndex() noexcept
+    : _index(DynamicIndex)
   { }
 
-  Pointer *pointer() noexcept { return _pointer; }
+  explicit PointerIndex(size_t index) noexcept
+    : _index(index)
+  { }
 
-  const Pointer* pointer() const noexcept { return _pointer; }
+  size_t index() const noexcept { return _index; }
 
-  bool operator==(const PointsToPointeesOfPointeesOf &rhs) const noexcept {
-    return _pointer == rhs._pointer;
+  bool isConstant() const noexcept { return _index != DynamicIndex; }
+
+  bool isDynamic() const noexcept { return _index == DynamicIndex; }
+
+  bool operator==(const PointerIndex &rhs) const noexcept {
+    return _index == rhs._index;
   }
 
-  bool operator!=(const PointsToPointeesOfPointeesOf &rhs) const noexcept {
-    return !operator==(rhs);
+  bool operator!=(const PointerIndex &rhs) const noexcept {
+    return _index != rhs._index;
   }
 
 private:
-  Pointer *_pointer;
+  size_t _index;
 };
 
-class PointeePointsToPointeesOf {
+class PointerAssignedElementPtr : public PointerAssignment {
 public:
-  struct Hash {
-    size_t operator()(const PointeePointsToPointeesOf &pt) const noexcept {
-      return std::hash<Pointer *> { }(pt._pointer);
-    }
-  };
+  static bool classof(const PointerAssignment *obj) noexcept {
+    return obj->kind() == PointerAssignmentKind::AssignedElementPtr;
+  }
 
-  explicit PointeePointsToPointeesOf(Pointer *pointer) noexcept
-    : _pointer(pointer)
+  explicit PointerAssignedElementPtr(Pointer *pointer, std::vector<PointerIndex> indexSequence) noexcept
+    : PointerAssignment {PointerAssignmentKind::AssignedElementPtr, pointer },
+      _indexSequence(std::move(indexSequence))
   { }
 
-  Pointer* pointer() noexcept { return _pointer; }
-
-  const Pointer* pointer() const noexcept { return _pointer; }
-
-  bool operator==(const PointeePointsToPointeesOf &rhs) const noexcept {
-    return _pointer == rhs._pointer;
+  llvm::iterator_range<typename std::vector<PointerIndex>::const_iterator> index_sequence() const noexcept {
+    return llvm::iterator_range<typename std::vector<PointerIndex>::const_iterator> {
+      _indexSequence.cbegin(),
+      _indexSequence.cend()
+    };
   }
 
-  bool operator!=(const PointeePointsToPointeesOf &rhs) const noexcept {
-    return !operator==(rhs);
-  }
+  size_t GetHashCode() const noexcept final;
+
+  bool operator==(const PointerAssignment &rhs) const noexcept final;
 
 private:
-  Pointer *_pointer;
+  std::vector<PointerIndex> _indexSequence;
+};
+
+class PointerAssignedPointee : public PointerAssignment {
+public:
+  static bool classof(const PointerAssignment *obj) noexcept {
+    return obj->kind() == PointerAssignmentKind::AssignedPointee;
+  }
+
+  explicit PointerAssignedPointee(Pointer *pointer) noexcept
+    : PointerAssignment {PointerAssignmentKind::AssignedPointee, pointer }
+  { }
+};
+
+class PointeeAssignedPointer : public PointerAssignment {
+public:
+  static bool classof(const PointerAssignment *obj) noexcept {
+    return obj->kind() == PointerAssignmentKind::PointeeAssigned;
+  }
+
+  explicit PointeeAssignedPointer(Pointer *pointer) noexcept
+    : PointerAssignment { PointerAssignmentKind::PointeeAssigned, pointer }
+  { }
 };
 
 /**
@@ -341,13 +358,15 @@ public:
 
   NON_COPIABLE_NON_MOVABLE(Pointer)
 
-  void AddPointsTo(Pointee *pointee) noexcept;
+  void AssignedPointer(Pointer *pointer) noexcept {
+    AssignedElementPtr(pointer, { PointerIndex { 0 } });
+  }
 
-  void AddPointsToPointeesOf(Pointer *pointer) noexcept;
+  void AssignedElementPtr(Pointer *pointer, std::vector<PointerIndex> indexSequence) noexcept;
 
-  void AddPointsToPointeesOfPointeesOf(Pointer *pointer) noexcept;
+  void AssignedPointee(Pointer *pointer) noexcept;
 
-  void AddPointeePointsToPointeesOf(Pointer *pointer) noexcept;
+  void PointeeAssigned(Pointer *pointer) noexcept;
 
   /**
    * Get the pointee set of this pointer.
@@ -364,10 +383,9 @@ public:
   const PointeeSet& GetPointeeSet() const noexcept;
 
 private:
-  std::unordered_set<PointsTo, PointsTo::Hash> _pointsTo;
-  std::unordered_set<PointsToPointeesOf, PointsToPointeesOf::Hash> _pointsToPointeesOf;
-  std::unordered_set<PointsToPointeesOfPointeesOf, PointsToPointeesOfPointeesOf::Hash> _pointsToPointeesOfPointeesOf;
-  std::unordered_set<PointeePointsToPointeesOf, PointeePointsToPointeesOf::Hash> _pointeePointsToPointeesOf;
+  std::unordered_set<PointerAssignedElementPtr, details::PolymorphicHasher<PointerAssignedElementPtr>> _assignedElementPtr;
+  std::unordered_set<PointerAssignedPointee, details::PolymorphicHasher<PointerAssignedPointee>> _assignedPointee;
+  std::unordered_set<PointeeAssignedPointer, details::PolymorphicHasher<PointeeAssignedPointer>> _pointeeAssigned;
   PointeeSet _pointees;
 };
 

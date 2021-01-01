@@ -55,7 +55,7 @@ struct PointerInstructionHandler<llvm::ExtractValueInst> {
     }
     assert(sourcePtrNode->isPointer());
 
-    targetPtrNode->pointer()->AddPointsToPointeesOf(sourcePtrNode->pointer());
+    targetPtrNode->pointer()->AssignedPointer(sourcePtrNode->pointer());
   }
 };
 
@@ -85,7 +85,7 @@ struct PointerInstructionHandler<llvm::LoadInst> {
     assert(resultPtrNode->isPointer());
     assert(sourcePtrNode->isPointer());
 
-    resultPtrNode->pointer()->AddPointsToPointeesOfPointeesOf(sourcePtrNode->pointer());
+    resultPtrNode->pointer()->AssignedPointee(sourcePtrNode->pointer());
   }
 };
 
@@ -105,7 +105,7 @@ struct PointerInstructionHandler<llvm::PHINode> {
       auto sourcePtrNode = solver.GetValueTree()->GetNode(sourcePtrValue);
       assert(sourcePtrNode->isPointer());
 
-      resultPtrNode->pointer()->AddPointsToPointeesOf(sourcePtrNode->pointer());
+      resultPtrNode->pointer()->AssignedPointer(sourcePtrNode->pointer());
     }
   }
 };
@@ -129,7 +129,7 @@ struct PointerInstructionHandler<llvm::SelectInst> {
       auto sourcePtrNode = solver.GetValueTree()->GetNode(sourcePtrValue);
       assert(sourcePtrNode->isPointer());
 
-      resultPtrNode->pointer()->AddPointsToPointeesOf(sourcePtrNode->pointer());
+      resultPtrNode->pointer()->AssignedPointer(sourcePtrNode->pointer());
     }
   }
 };
@@ -149,7 +149,7 @@ struct PointerInstructionHandler<llvm::StoreInst> {
     assert(targetPtrNode->isPointer());
     assert(sourcePtrNode->isPointer());
 
-    targetPtrNode->pointer()->AddPointeePointsToPointeesOf(sourcePtrNode->pointer());
+    targetPtrNode->pointer()->PointeeAssigned(sourcePtrNode->pointer());
   }
 };
 

@@ -16,30 +16,25 @@ bool Pointer::classof(const Pointee *obj) noexcept {
 
 Pointer::Pointer(ValueTreeNode &node) noexcept
   : Pointee { node },
-    _pointsTo(),
-    _pointsToPointeesOf(),
-    _pointsToPointeesOfPointeesOf(),
-    _pointeePointsToPointeesOf()
+    _assignedElementPtr(),
+    _assignedPointee(),
+    _pointeeAssigned(),
+    _pointees()
 { }
 
-void Pointer::AddPointsTo(Pointee *pointee) noexcept {
-  assert(pointee && "pointee cannot be null");
-  _pointsTo.emplace(pointee);
+void Pointer::AssignedElementPtr(Pointer *pointer, std::vector<PointerIndex> indexSequence) noexcept {
+  assert(pointer && "pointer cannot be null");
+  _assignedElementPtr.emplace(pointer, std::move(indexSequence));
 }
 
-void Pointer::AddPointsToPointeesOf(Pointer *pointer) noexcept {
+void Pointer::AssignedPointee(Pointer *pointer) noexcept {
   assert(pointer && "pointer cannot be null");
-  _pointsToPointeesOf.emplace(pointer);
+  _assignedPointee.emplace(pointer);
 }
 
-void Pointer::AddPointsToPointeesOfPointeesOf(Pointer *pointer) noexcept {
+void Pointer::PointeeAssigned(Pointer *pointer) noexcept {
   assert(pointer && "pointer cannot be null");
-  _pointsToPointeesOfPointeesOf.emplace(pointer);
-}
-
-void Pointer::AddPointeePointsToPointeesOf(Pointer *pointer) noexcept {
-  assert(pointer && "pointer cannot be null");
-  _pointeePointsToPointeesOf.emplace(pointer);
+  _pointeeAssigned.emplace(pointer);
 }
 
 PointeeSet& Pointer::GetPointeeSet() noexcept {

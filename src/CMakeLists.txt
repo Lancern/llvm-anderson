@@ -4,5 +4,6 @@ add_library(LLVMAnderson MODULE
         Pointee.cpp
         PointeeSet.cpp
         Pointer.cpp
+        PointerAssignment.cpp
         ValueTree.cpp
         ValueTreeNode.cpp)
