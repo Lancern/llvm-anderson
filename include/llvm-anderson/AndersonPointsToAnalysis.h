@@ -151,6 +151,175 @@ struct PointeePointsToPointeesOfHasher {
   }
 };
 
+/**
+ * A set of pointees.
+ */
+class PointeeSet {
+public:
+  class const_iterator;
+
+  /**
+   * Iterator of PointeeSet.
+   */
+  class iterator {
+  public:
+    /**
+     * Type of the inner iterator.
+     */
+    using inner_iterator = typename std::unordered_set<Pointee *>::iterator;
+
+    /**
+     * Construct a new iterator object from the given inner iterator.
+     *
+     * @param inner the inner iterator.
+     */
+    explicit iterator(inner_iterator inner) noexcept;
+
+    Pointee* operator*() const noexcept;
+
+    iterator& operator++() noexcept;
+
+    iterator operator++(int) & noexcept; // NOLINT(cert-dcl21-cpp)
+
+    bool operator==(const iterator &rhs) const noexcept;
+
+    bool operator!=(const iterator &rhs) const noexcept;
+
+    friend class PointeeSet::const_iterator;
+
+  private:
+    inner_iterator _inner;
+  };
+
+  /**
+   * Constant iterator of PointeeSet.
+   */
+  class const_iterator {
+  public:
+    /**
+     * Type of the inner iterator.
+     */
+    using inner_iterator = typename std::unordered_set<Pointee *>::const_iterator;
+
+    /**
+     * Construct a new const_iterator object from the given inner iterator.
+     *
+     * @param inner the inner iterator.
+     */
+    explicit const_iterator(inner_iterator inner) noexcept;
+
+    const_iterator(iterator iter) noexcept; // NOLINT(google-explicit-constructor)
+
+    const Pointee* operator*() const noexcept;
+
+    const_iterator& operator++() noexcept;
+
+    const_iterator operator++(int) & noexcept; // NOLINT(cert-dcl21-cpp)
+
+    bool operator==(const const_iterator &rhs) const noexcept;
+
+    bool operator!=(const const_iterator &rhs) const noexcept;
+
+  private:
+    inner_iterator _inner;
+  };
+
+  /**
+   * Get the number of elements contained in the PointeeSet.
+   *
+   * @return the number of elements contained in the PointeeSet.
+   */
+  size_t size() const noexcept;
+
+  iterator begin() noexcept;
+
+  const_iterator begin() const noexcept;
+
+  iterator end() noexcept;
+
+  const_iterator end() const noexcept;
+
+  const_iterator cbegin() noexcept;
+
+  const_iterator cbegin() const noexcept;
+
+  const_iterator cend() noexcept;
+
+  const_iterator cend() const noexcept;
+
+  /**
+   * Insert the given pointee into this set.
+   *
+   * @param pointee the pointee.
+   * @return whether the insertion takes place.
+   */
+  bool insert(Pointee *pointee) noexcept;
+
+  /**
+   * Get the iterator to the specified element.
+   *
+   * @param pointee the element to find.
+   * @return the iterator to the specified element. If no such element are contained in this set, returns `end()`.
+   */
+  iterator find(Pointee *pointee) noexcept;
+
+  /**
+   * Get the iterator to the specified element.
+   *
+   * @param pointee the element to find.
+   * @return the iterator to the specified element. If no such element are contained in this set, returns `end()`.
+   */
+  const_iterator find(const Pointee *pointee) const noexcept;
+
+  /**
+   * Return 1 if `pointee` is in this set, otherwise return 0.
+   *
+   * @return 1 if `pointee` is in this set, otherwise return 0.
+   */
+  size_t count(const Pointee *pointee) const noexcept;
+
+  /**
+   * Determine whether the specified set is a subset of this set.
+   *
+   * @param another another pointee set.
+   * @return whether the specified set is a subset of this set.
+   */
+  bool isSubset(const PointeeSet &another) const noexcept;
+
+  /**
+   * Determine whether this set is a subset of the specified set.
+   *
+   * @param another another pointee set.
+   * @return whether this set is a subset of the specified set.
+   */
+  bool isSubsetOf(const PointeeSet &another) const noexcept;
+
+  /**
+   * Merge all elements from the specified set into this set.
+   *
+   * @param source the source pointee set.
+   * @return whether at least one new element is added into this set.
+   */
+  bool MergeFrom(const PointeeSet &source) noexcept;
+
+  /**
+   * Merge all elements from this set into the specified set.
+   *
+   * @param target the target set.
+   * @return whether at least one new element is added to the specified set.
+   */
+  bool MergeTo(PointeeSet &target) const noexcept;
+
+  bool operator==(const PointeeSet &rhs) const noexcept;
+
+  bool operator!=(const PointeeSet &rhs) const noexcept;
+
+  PointeeSet& operator+=(const PointeeSet &rhs) noexcept;
+
+private:
+  std::unordered_set<Pointee *> _pointees;
+};
+
 class Pointee {
 public:
   explicit Pointee(ValueTreeNode &node) noexcept;
