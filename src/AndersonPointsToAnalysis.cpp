@@ -66,7 +66,23 @@ struct PointerInstructionHandler<llvm::GetElementPtrInst> {
     auto targetPtrNode = solver.GetValueTree()->GetNode(targetPtrValue);
     assert(targetPtrNode->isPointer());
 
-    // TODO: Implement PointerInstructionHandler<llvm::GetElementPtrInst>::Handle
+    auto sourcePtrValue = inst.getPointerOperand();
+    auto sourcePtrNode = solver.GetValueTree()->GetNode(sourcePtrValue);
+    assert(sourcePtrNode->isPointer());
+
+    std::vector<PointerIndex> indexSequence;
+    indexSequence.reserve(inst.getNumIndices());
+    for (const auto &indexValueUse : inst.indices()) {
+      auto indexValue = indexValueUse.get();
+      auto indexConstantInt = llvm::dyn_cast<llvm::ConstantInt>(indexValue);
+      if (indexConstantInt) {
+        indexSequence.emplace_back(static_cast<size_t>(indexConstantInt->getZExtValue()));
+      } else {
+        indexSequence.emplace_back();
+      }
+    }
+
+    targetPtrNode->pointer()->AssignedElementPtr(sourcePtrNode->pointer(), std::move(indexSequence));
   }
 };
 
