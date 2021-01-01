@@ -2,6 +2,9 @@
 // Created by Sirui Mu on 2020/12/26.
 //
 
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
+
 #ifndef LLVM_ANDERSON_POINTS_TO_ANALYSIS_H
 #define LLVM_ANDERSON_POINTS_TO_ANALYSIS_H
 
@@ -33,6 +36,12 @@ class ValueTreeNode;
 
 class PointsTo {
 public:
+  struct Hash {
+    size_t operator()(const PointsTo &e) const noexcept {
+      return std::hash<Pointee *> { }(e._pointee);
+    }
+  };
+
   explicit PointsTo(Pointee *pointee) noexcept
     : _pointee(pointee)
   { }
@@ -49,20 +58,18 @@ public:
     return !operator==(rhs);
   }
 
-  friend class PointsToHasher;
-
 private:
   Pointee *_pointee;
 };
 
-struct PointsToHasher {
-  size_t operator()(const PointsTo &e) const noexcept {
-    return std::hash<Pointee *> { }(e._pointee);
-  }
-};
-
 class PointsToPointeesOf {
 public:
+  struct Hash {
+    size_t operator()(const PointsToPointeesOf &e) const noexcept {
+      return std::hash<Pointer *> { }(e._pointer);
+    }
+  };
+
   explicit PointsToPointeesOf(Pointer *pointer) noexcept
     : _pointer(pointer)
   { }
@@ -79,20 +86,18 @@ public:
     return !operator==(rhs);
   }
 
-  friend struct PointsToPointeesOfHasher;
-
 private:
   Pointer *_pointer;
 };
 
-struct PointsToPointeesOfHasher {
-  size_t operator()(const PointsToPointeesOf &e) const noexcept {
-    return std::hash<Pointer *> { }(e._pointer);
-  }
-};
-
 class PointsToPointeesOfPointeesOf {
 public:
+  struct Hash {
+    size_t operator()(const PointsToPointeesOfPointeesOf &pt) const noexcept {
+      return std::hash<Pointer *> { }(pt._pointer);
+    }
+  };
+
   explicit PointsToPointeesOfPointeesOf(Pointer *pointer) noexcept
     : _pointer(pointer)
   { }
@@ -109,20 +114,18 @@ public:
     return !operator==(rhs);
   }
 
-  friend class PointsToPointeesOfPointeesOfHasher;
-
 private:
   Pointer *_pointer;
 };
 
-struct PointsToPointeesOfPointeesOfHasher {
-  size_t operator()(const PointsToPointeesOfPointeesOf &pt) const noexcept {
-    return std::hash<Pointer *> { }(pt._pointer);
-  }
-};
-
 class PointeePointsToPointeesOf {
 public:
+  struct Hash {
+    size_t operator()(const PointeePointsToPointeesOf &pt) const noexcept {
+      return std::hash<Pointer *> { }(pt._pointer);
+    }
+  };
+
   explicit PointeePointsToPointeesOf(Pointer *pointer) noexcept
     : _pointer(pointer)
   { }
@@ -139,16 +142,8 @@ public:
     return !operator==(rhs);
   }
 
-  friend struct PointeePointsToPointeesOfHasher;
-
 private:
   Pointer *_pointer;
-};
-
-struct PointeePointsToPointeesOfHasher {
-  size_t operator()(const PointeePointsToPointeesOf &pt) const noexcept {
-    return std::hash<Pointer *> { }(pt._pointer);
-  }
 };
 
 /**
@@ -369,10 +364,10 @@ public:
   const PointeeSet& GetPointeeSet() const noexcept;
 
 private:
-  std::unordered_set<PointsTo, PointsToHasher> _pointsTo;
-  std::unordered_set<PointsToPointeesOf, PointsToPointeesOfHasher> _pointsToPointeesOf;
-  std::unordered_set<PointsToPointeesOfPointeesOf, PointsToPointeesOfPointeesOfHasher> _pointsToPointeesOfPointeesOf;
-  std::unordered_set<PointeePointsToPointeesOf, PointeePointsToPointeesOfHasher> _pointeePointsToPointeesOf;
+  std::unordered_set<PointsTo, PointsTo::Hash> _pointsTo;
+  std::unordered_set<PointsToPointeesOf, PointsToPointeesOf::Hash> _pointsToPointeesOf;
+  std::unordered_set<PointsToPointeesOfPointeesOf, PointsToPointeesOfPointeesOf::Hash> _pointsToPointeesOfPointeesOf;
+  std::unordered_set<PointeePointsToPointeesOf, PointeePointsToPointeesOf::Hash> _pointeePointsToPointeesOf;
   PointeeSet _pointees;
 };
 
@@ -487,3 +482,5 @@ private:
 } // namespace llvm
 
 #endif // LLVM_ANDERSON_POINTS_TO_ANALYSIS_H
+
+#pragma clang diagnostic pop
