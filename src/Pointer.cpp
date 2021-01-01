@@ -42,6 +42,14 @@ void Pointer::AddPointeePointsToPointeesOf(Pointer *pointer) noexcept {
   _pointeePointsToPointeesOf.emplace(pointer);
 }
 
+PointeeSet& Pointer::GetPointeeSet() noexcept {
+  return _pointees;
+}
+
+const PointeeSet& Pointer::GetPointeeSet() const noexcept {
+  return _pointees;
+}
+
 } // namespace anderson
 
 } // namespace llvm

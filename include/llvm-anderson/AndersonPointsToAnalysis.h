@@ -152,7 +152,7 @@ struct PointeePointsToPointeesOfHasher {
 };
 
 /**
- * A set of pointees.
+ * A set of GetPointeeSet.
  */
 class PointeeSet {
 public:
@@ -354,11 +354,26 @@ public:
 
   void AddPointeePointsToPointeesOf(Pointer *pointer) noexcept;
 
+  /**
+   * Get the pointee set of this pointer.
+   *
+   * @return the pointee set of this pointer.
+   */
+  PointeeSet& GetPointeeSet() noexcept;
+
+  /**
+   * Get the pointee set of this pointer.
+   *
+   * @return the pointee set of this pointer.
+   */
+  const PointeeSet& GetPointeeSet() const noexcept;
+
 private:
   std::unordered_set<PointsTo, PointsToHasher> _pointsTo;
   std::unordered_set<PointsToPointeesOf, PointsToPointeesOfHasher> _pointsToPointeesOf;
   std::unordered_set<PointsToPointeesOfPointeesOf, PointsToPointeesOfPointeesOfHasher> _pointsToPointeesOfPointeesOf;
   std::unordered_set<PointeePointsToPointeesOf, PointeePointsToPointeesOfHasher> _pointeePointsToPointeesOf;
+  PointeeSet _pointees;
 };
 
 class ValueTreeNode {
