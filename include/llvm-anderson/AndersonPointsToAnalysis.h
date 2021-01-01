@@ -956,18 +956,17 @@ private:
  */
 class AndersonPointsToAnalysis : public llvm::ModulePass {
 public:
-  class PointsToSolver;
-
   static char ID;
 
   /**
    * Construct a new AndersonPointsToAnalysis object.
    */
-  explicit AndersonPointsToAnalysis() noexcept;
+  explicit AndersonPointsToAnalysis() noexcept
+    : llvm::ModulePass { ID },
+      _valueTree(nullptr)
+  { }
 
   NON_COPIABLE_NON_MOVABLE(AndersonPointsToAnalysis)
-
-  ~AndersonPointsToAnalysis() noexcept override;
 
   bool runOnModule(llvm::Module &module) final;
 
@@ -976,17 +975,23 @@ public:
    *
    * @return the value tree which contains analysis result.
    */
-  ValueTree* GetValueTree() noexcept;
+  ValueTree* GetValueTree() noexcept {
+    assert(_valueTree && "The analysis has not been run");
+    return _valueTree.get();
+  }
 
   /**
    * Get the value tree which contains analysis result.
    *
    * @return the value tree which contains analysis result.
    */
-  const ValueTree* GetValueTree() const noexcept;
+  const ValueTree* GetValueTree() const noexcept {
+    assert(_valueTree && "The analysis has not been run");
+    return _valueTree.get();
+  }
 
 private:
-  std::unique_ptr<PointsToSolver> _solver;
+  std::unique_ptr<ValueTree> _valueTree;
 };
 
 bool Pointee::isPointer() const noexcept {

@@ -6,33 +6,13 @@
 
 #include <llvm/IR/Instructions.h>
 
+#include "PointsToSolver.h"
+
 namespace llvm {
 
 namespace anderson {
 
-class AndersonPointsToAnalysis::PointsToSolver {
-  // TODO: Implement AndersonPointsToAnalysis::PointsToSolver
-
-public:
-  explicit PointsToSolver(const llvm::Module &module) noexcept
-    : _valueTree(std::make_unique<ValueTree>(module))
-  { }
-
-  ValueTree* GetValueTree() const noexcept {
-    return _valueTree.get();
-  }
-
-  void Solve() noexcept {
-    // TODO: Implement AndersonPointsToAnalysis::PointsToSolver::Solve
-  }
-
-private:
-  std::unique_ptr<ValueTree> _valueTree;
-};
-
 namespace {
-
-using PointsToSolver = AndersonPointsToAnalysis::PointsToSolver;
 
 template <typename Instruction>
 struct PointerInstructionHandler { };
@@ -192,34 +172,20 @@ LLVM_POINTER_INST_LIST(INST_DISPATCHER)
 
 char AndersonPointsToAnalysis::ID = 0;
 
-AndersonPointsToAnalysis::AndersonPointsToAnalysis() noexcept
-  : llvm::ModulePass { ID },
-    _solver(nullptr)
-{ }
-
-AndersonPointsToAnalysis::~AndersonPointsToAnalysis() noexcept = default;
-
 bool AndersonPointsToAnalysis::runOnModule(llvm::Module &module) {
-  _solver = std::make_unique<PointsToSolver>(module);
+  PointsToSolver solver { module };
 
   for (const auto &func : module) {
     for (const auto &bb : func) {
       for (const auto &inst : bb) {
-        UpdateAndersonSolverOnInst(*_solver, inst);
+        UpdateAndersonSolverOnInst(solver, inst);
       }
     }
   }
-  _solver->Solve();
+  solver.Solve();
 
+  _valueTree = solver.TakeValueTree();
   return false;  // The module is not modified by this pass.
-}
-
-ValueTree* AndersonPointsToAnalysis::GetValueTree() noexcept {
-  return _solver->GetValueTree();
-}
-
-const ValueTree* AndersonPointsToAnalysis::GetValueTree() const noexcept {
-  return _solver->GetValueTree();
 }
 
 static llvm::RegisterPass<AndersonPointsToAnalysis> RegisterAnderson { // NOLINT(cert-err58-cpp)
