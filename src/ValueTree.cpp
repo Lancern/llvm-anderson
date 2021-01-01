@@ -29,18 +29,6 @@ ValueTree::ValueTree(const llvm::Module &module) noexcept
   }
 }
 
-ValueTreeNode* ValueTree::GetNode(const llvm::Value *value) noexcept {
-  auto it = _roots.find(value);
-  if (it == _roots.end()) {
-    return nullptr;
-  }
-  return it->second.get();
-}
-
-const ValueTreeNode* ValueTree::GetNode(const llvm::Value *value) const noexcept {
-  return const_cast<ValueTree *>(this)->GetNode(value);
-}
-
 } // namespace anderson
 
 } // namespace llvm

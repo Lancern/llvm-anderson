@@ -8,6 +8,7 @@
 #ifndef LLVM_ANDERSON_POINTS_TO_ANALYSIS_H
 #define LLVM_ANDERSON_POINTS_TO_ANALYSIS_H
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <functional>
@@ -22,6 +23,7 @@
 #include <llvm/IR/Type.h>
 #include <llvm/IR/Value.h>
 #include <llvm/Pass.h>
+#include <llvm/Support/Casting.h>
 
 #define NON_COPIABLE_NON_MOVABLE(className)             \
   className(const className &) = delete;                \
@@ -291,17 +293,32 @@ public:
      *
      * @param inner the inner iterator.
      */
-    explicit iterator(inner_iterator inner) noexcept;
+    explicit iterator(inner_iterator inner) noexcept
+      : _inner(inner)
+    { }
 
-    Pointee* operator*() const noexcept;
+    Pointee* operator*() const noexcept {
+      return *_inner;
+    }
 
-    iterator& operator++() noexcept;
+    iterator& operator++() noexcept {
+      ++_inner;
+      return *this;
+    }
 
-    iterator operator++(int) & noexcept; // NOLINT(cert-dcl21-cpp)
+    iterator operator++(int) & noexcept { // NOLINT(cert-dcl21-cpp)
+      auto old = *this;
+      ++_inner;
+      return old;
+    }
 
-    bool operator==(const iterator &rhs) const noexcept;
+    bool operator==(const iterator &rhs) const noexcept {
+      return _inner == rhs._inner;
+    }
 
-    bool operator!=(const iterator &rhs) const noexcept;
+    bool operator!=(const iterator &rhs) const noexcept {
+      return _inner != rhs._inner;
+    }
 
     friend class PointeeSet::const_iterator;
 
@@ -324,19 +341,36 @@ public:
      *
      * @param inner the inner iterator.
      */
-    explicit const_iterator(inner_iterator inner) noexcept;
+    explicit const_iterator(inner_iterator inner) noexcept
+      : _inner(inner)
+    { }
 
-    const_iterator(iterator iter) noexcept; // NOLINT(google-explicit-constructor)
+    const_iterator(iterator iter) noexcept // NOLINT(google-explicit-constructor)
+      : _inner(iter._inner)
+    { }
 
-    const Pointee* operator*() const noexcept;
+    const Pointee* operator*() const noexcept {
+      return *_inner;
+    }
 
-    const_iterator& operator++() noexcept;
+    const_iterator& operator++() noexcept {
+      ++_inner;
+      return *this;
+    }
 
-    const_iterator operator++(int) & noexcept; // NOLINT(cert-dcl21-cpp)
+    const_iterator operator++(int) & noexcept { // NOLINT(cert-dcl21-cpp)
+      auto old = *this;
+      ++_inner;
+      return old;
+    }
 
-    bool operator==(const const_iterator &rhs) const noexcept;
+    bool operator==(const const_iterator &rhs) const noexcept {
+      return _inner == rhs._inner;
+    }
 
-    bool operator!=(const const_iterator &rhs) const noexcept;
+    bool operator!=(const const_iterator &rhs) const noexcept {
+      return _inner != rhs._inner;
+    }
 
   private:
     inner_iterator _inner;
@@ -347,23 +381,41 @@ public:
    *
    * @return the number of elements contained in the PointeeSet.
    */
-  size_t size() const noexcept;
+  size_t size() const noexcept {
+    return _pointees.size();
+  }
 
-  iterator begin() noexcept;
+  iterator begin() noexcept {
+    return iterator { _pointees.begin() };
+  }
 
-  const_iterator begin() const noexcept;
+  const_iterator begin() const noexcept {
+    return cbegin();
+  }
 
-  iterator end() noexcept;
+  iterator end() noexcept  {
+    return iterator { _pointees.end() };
+  }
 
-  const_iterator end() const noexcept;
+  const_iterator end() const noexcept  {
+    return cend();
+  }
 
-  const_iterator cbegin() noexcept;
+  const_iterator cbegin() noexcept {
+    return const_iterator { _pointees.cbegin() };
+  }
 
-  const_iterator cbegin() const noexcept;
+  const_iterator cbegin() const noexcept {
+    return const_iterator { _pointees.cbegin() };
+  }
 
-  const_iterator cend() noexcept;
+  const_iterator cend() noexcept {
+    return const_iterator { _pointees.cend() };
+  }
 
-  const_iterator cend() const noexcept;
+  const_iterator cend() const noexcept {
+    return const_iterator { _pointees.cend() };
+  }
 
   /**
    * Insert the given pointee into this set.
@@ -371,7 +423,9 @@ public:
    * @param pointee the pointee.
    * @return whether the insertion takes place.
    */
-  bool insert(Pointee *pointee) noexcept;
+  bool insert(Pointee *pointee) noexcept {
+    return _pointees.insert(pointee).second;
+  }
 
   /**
    * Get the iterator to the specified element.
@@ -379,7 +433,10 @@ public:
    * @param pointee the element to find.
    * @return the iterator to the specified element. If no such element are contained in this set, returns `end()`.
    */
-  iterator find(Pointee *pointee) noexcept;
+  iterator find(Pointee *pointee) noexcept {
+    auto inner = _pointees.find(pointee);
+    return iterator { inner };
+  }
 
   /**
    * Get the iterator to the specified element.
@@ -387,14 +444,23 @@ public:
    * @param pointee the element to find.
    * @return the iterator to the specified element. If no such element are contained in this set, returns `end()`.
    */
-  const_iterator find(const Pointee *pointee) const noexcept;
+  const_iterator find(const Pointee *pointee) const noexcept {
+    auto inner = _pointees.find(const_cast<Pointee *>(pointee));
+    return const_iterator { inner };
+  }
 
   /**
    * Return 1 if `pointee` is in this set, otherwise return 0.
    *
    * @return 1 if `pointee` is in this set, otherwise return 0.
    */
-  size_t count(const Pointee *pointee) const noexcept;
+  size_t count(const Pointee *pointee) const noexcept {
+    auto it = find(pointee);
+    if (it == end()) {
+      return 0;
+    }
+    return 1;
+  }
 
   /**
    * Determine whether the specified set is a subset of this set.
@@ -402,7 +468,11 @@ public:
    * @param another another pointee set.
    * @return whether the specified set is a subset of this set.
    */
-  bool isSubset(const PointeeSet &another) const noexcept;
+  bool isSubset(const PointeeSet &another) const noexcept {
+    return std::all_of(another.begin(), another.end(), [this](const Pointee *anotherElement) {
+      return count(anotherElement) == 1;
+    });
+  }
 
   /**
    * Determine whether this set is a subset of the specified set.
@@ -410,7 +480,9 @@ public:
    * @param another another pointee set.
    * @return whether this set is a subset of the specified set.
    */
-  bool isSubsetOf(const PointeeSet &another) const noexcept;
+  bool isSubsetOf(const PointeeSet &another) const noexcept {
+    return another.isSubset(*this);
+  }
 
   /**
    * Merge all elements from the specified set into this set.
@@ -418,7 +490,15 @@ public:
    * @param source the source pointee set.
    * @return whether at least one new element is added into this set.
    */
-  bool MergeFrom(const PointeeSet &source) noexcept;
+  bool MergeFrom(const PointeeSet &source) noexcept {
+    auto newElement = false;
+    for (auto sourceElement : source) {
+      if (insert(const_cast<Pointee *>(sourceElement))) {
+        newElement = true;
+      }
+    }
+    return newElement;
+  }
 
   /**
    * Merge all elements from this set into the specified set.
@@ -426,13 +506,22 @@ public:
    * @param target the target set.
    * @return whether at least one new element is added to the specified set.
    */
-  bool MergeTo(PointeeSet &target) const noexcept;
+  bool MergeTo(PointeeSet &target) const noexcept {
+    return target.MergeFrom(*this);
+  }
 
-  bool operator==(const PointeeSet &rhs) const noexcept;
+  bool operator==(const PointeeSet &rhs) const noexcept {
+    return _pointees == rhs._pointees;
+  }
 
-  bool operator!=(const PointeeSet &rhs) const noexcept;
+  bool operator!=(const PointeeSet &rhs) const noexcept {
+    return _pointees != rhs._pointees;
+  }
 
-  PointeeSet& operator+=(const PointeeSet &rhs) noexcept;
+  PointeeSet& operator+=(const PointeeSet &rhs) noexcept {
+    MergeFrom(rhs);
+    return *this;
+  }
 
 private:
   std::unordered_set<Pointee *> _pointees;
@@ -448,7 +537,9 @@ public:
    *
    * @param node the location of the pointee in the value tree.
    */
-  explicit Pointee(ValueTreeNode &node) noexcept;
+  explicit Pointee(ValueTreeNode &node) noexcept
+    : _node(node)
+  { }
 
   NON_COPIABLE_NON_MOVABLE(Pointee)
 
@@ -457,14 +548,18 @@ public:
    *
    * @return the location of this pointee in the value tree.
    */
-  ValueTreeNode* node() noexcept;
+  ValueTreeNode* node() noexcept {
+    return &_node;
+  }
 
   /**
    * Get the location of this pointee in the value tree.
    *
    * @return the location of this pointee in the value tree.
    */
-  const ValueTreeNode* node() const noexcept;
+  const ValueTreeNode* node() const noexcept {
+    return &_node;
+  }
 
   /**
    * Determine whether this pointee is a pointer.
@@ -489,14 +584,22 @@ private:
  */
 class Pointer : public Pointee {
 public:
-  static bool classof(const Pointee *obj) noexcept;
+  static bool classof(const Pointee *obj) noexcept {
+    return obj->isPointer();
+  }
 
   /**
    * Construct a new Pointer object.
    *
    * @param node the location of the pointer in the value tree.
    */
-  explicit Pointer(ValueTreeNode &node) noexcept;
+  explicit Pointer(ValueTreeNode &node) noexcept
+    : Pointee { node },
+      _assignedElementPtr(),
+      _assignedPointee(),
+      _pointeeAssigned(),
+      _pointees()
+  { }
 
   NON_COPIABLE_NON_MOVABLE(Pointer)
 
@@ -516,35 +619,48 @@ public:
    * @param pointer the pointer on the right hand side of the pointer assignment.
    * @param indexSequence the pointer index sequence.
    */
-  void AssignedElementPtr(Pointer *pointer, std::vector<PointerIndex> indexSequence) noexcept;
+  void AssignedElementPtr(Pointer *pointer, std::vector<PointerIndex> indexSequence) noexcept {
+    assert(pointer && "pointer cannot be null");
+    _assignedElementPtr.emplace(pointer, std::move(indexSequence));
+  }
 
   /**
    * Specify that this pointer is assigned to the pointee of the specified pointer.
    *
    * @param pointer the pointer on the right hand side of the pointer assignment.
    */
-  void AssignedPointee(Pointer *pointer) noexcept;
+  void AssignedPointee(Pointer *pointer) noexcept {
+    assert(pointer && "pointer cannot be null");
+    _assignedPointee.emplace(pointer);
+  }
 
   /**
    * Specify that the pointee of this pointer is assigned to the specified pointer.
    *
    * @param pointer the pointer on the right hand side of the pointer assignment.
    */
-  void PointeeAssigned(Pointer *pointer) noexcept;
+  void PointeeAssigned(Pointer *pointer) noexcept {
+    assert(pointer && "pointer cannot be null");
+    _pointeeAssigned.emplace(pointer);
+  }
 
   /**
    * Get the pointee set of this pointer.
    *
    * @return the pointee set of this pointer.
    */
-  PointeeSet& GetPointeeSet() noexcept;
+  PointeeSet& GetPointeeSet() noexcept {
+    return _pointees;
+  }
 
   /**
    * Get the pointee set of this pointer.
    *
    * @return the pointee set of this pointer.
    */
-  const PointeeSet& GetPointeeSet() const noexcept;
+  const PointeeSet& GetPointeeSet() const noexcept {
+    return _pointees;
+  }
 
 private:
   std::unordered_set<PointerAssignedElementPtr, details::PolymorphicHasher<PointerAssignedElementPtr>> _assignedElementPtr;
@@ -563,7 +679,16 @@ public:
    *
    * @param value the `llvm::Value` of the new node.
    */
-  explicit ValueTreeNode(const llvm::Value *value) noexcept;
+  explicit ValueTreeNode(const llvm::Value *value) noexcept
+    : _type(value->getType()),
+      _value(value),
+      _parent(nullptr),
+      _offset(0),
+      _children()
+  {
+    assert(value && "value cannot be null");
+    Initialize();
+  }
 
   /**
    * Construct a new ValueTreeNode object that represents the sub-object of the specified parent value.
@@ -572,7 +697,17 @@ public:
    * @param parent ValueTreeNode that represents the parent value.
    * @param offset the offset of this sub-object within the parent value.
    */
-  explicit ValueTreeNode(const llvm::Type *type, ValueTreeNode *parent, size_t offset) noexcept;
+  explicit ValueTreeNode(const llvm::Type *type, ValueTreeNode *parent, size_t offset) noexcept
+    : _type(type),
+      _value(nullptr),
+      _parent(parent),
+      _offset(offset),
+      _children()
+  {
+    assert(type && "type cannot be null");
+    assert(parent && "parent cannot be null");
+    Initialize();
+  }
 
   NON_COPIABLE_NON_MOVABLE(ValueTreeNode)
 
@@ -581,7 +716,9 @@ public:
    *
    * @return the type of this value.
    */
-  const llvm::Type *type() const noexcept;
+  const llvm::Type *type() const noexcept {
+    return _type;
+  }
 
   /**
    * Get the value represented by this node as `llvm::Value` object.
@@ -589,7 +726,9 @@ public:
    * @return the value represented by this node as `llvm::Value` object. If this node represents a sub-object of some
    * parent value, return nullptr.
    */
-  const llvm::Value *value() const noexcept;
+  const llvm::Value *value() const noexcept {
+    return _value;
+  }
 
   /**
    * Get the parent node of this node.
@@ -597,7 +736,9 @@ public:
    * @return the parent node of this node. If this node does not represent a sub-object of some parent value, return
    * nullptr.
    */
-  ValueTreeNode* parent() const noexcept;
+  ValueTreeNode* parent() const noexcept {
+    return _parent;
+  }
 
   /**
    * Get the offset of the sub-object within the parent object.
@@ -605,49 +746,75 @@ public:
    * @return the offset of the sub-object within the parent object. The return value is always 0 if this node does not
    * represent a sub-object.
    */
-  size_t offset() const noexcept;
+  size_t offset() const noexcept {
+    return _offset;
+  }
 
   /**
    * Get the Pointee object connected to this node.
    *
    * @return the Pointee object connected to this node.
    */
-  Pointee* pointee() noexcept;
+  Pointee* pointee() noexcept {
+    return _pointee.get();
+  }
 
   /**
    * Get the Pointee object connected to this node.
    *
    * @return the Pointee object connected to this node.
    */
-  const Pointee* pointee() const noexcept;
+  const Pointee* pointee() const noexcept {
+    return _pointee.get();
+  }
 
   /**
    * Determine whether this node represent a root value, i.e. this value is not a sub-object.
    *
    * @return whether this node represent a root value.
    */
-  bool isRoot() const noexcept;
+  bool isRoot() const noexcept {
+    return _parent == nullptr;
+  }
 
   /**
    * Determine whether the value represented by this node is in global scope.
    *
    * @return whether the value represented by this node is in global scope.
    */
-  bool isGlobal() const noexcept;
+  bool isGlobal() const noexcept {
+    if (_parent) {
+      return _parent->isGlobal();
+    }
+    return llvm::isa<llvm::GlobalObject>(_value);
+  }
 
   /**
    * Determine whether the value represented by this node is defined outside of the current module.
    *
    * @return whether the value represented by this node is defined outside of the current module.
    */
-  bool isExternal() const noexcept;
+  bool isExternal() const noexcept {
+    if (_parent) {
+      return _parent->isExternal();
+    }
+
+    if (!isGlobal()) {
+      return false;
+    }
+
+    auto globalObject = llvm::cast<llvm::GlobalObject>(_value);
+    return llvm::GlobalValue::isAvailableExternallyLinkage(globalObject->getLinkage());
+  }
 
   /**
    * Determine whether the value represented by this node is a pointer.
    *
    * @return whether the value represented by this node is a pointer.
    */
-  bool isPointer() const noexcept;
+  bool isPointer() const noexcept {
+    return _type->isPointerTy();
+  }
 
   /**
    * Get the Pointer object connected to this node.
@@ -656,7 +823,9 @@ public:
    *
    * @return the pointer object connected to this node.
    */
-  Pointer* pointer() noexcept;
+  Pointer* pointer() noexcept {
+    return llvm::cast<Pointer>(pointee());
+  }
 
   /**
    * Get the Pointer object connected to this node.
@@ -665,21 +834,27 @@ public:
    *
    * @return the pointer object connected to this node.
    */
-  const Pointer* pointer() const noexcept;
+  const Pointer* pointer() const noexcept {
+    return llvm::cast<Pointer>(pointee());
+  }
 
   /**
    * Determine whether this node has any child nodes.
    *
    * @return whether this node has any child nodes.
    */
-  bool hasChildren() const noexcept;
+  bool hasChildren() const noexcept {
+    return !_children.empty();
+  }
 
   /**
    * Get the number of child nodes under this node.
    *
    * @return the number of child nodes under this node.
    */
-  size_t GetNumChildren() const noexcept;
+  size_t GetNumChildren() const noexcept {
+    return _children.size();
+  }
 
   /**
    * Get the child node at the specified index.
@@ -689,7 +864,10 @@ public:
    * @param index the index.
    * @return the child node at the specified index.
    */
-  ValueTreeNode* GetChild(size_t index) noexcept;
+  ValueTreeNode* GetChild(size_t index) noexcept {
+    assert(index >= 0 && index < _children.size() && "index is out of range");
+    return _children[index].get();
+  }
 
   /**
    * Get the child node at the specified index.
@@ -699,7 +877,10 @@ public:
    * @param index the index.
    * @return the child node at the specified index.
    */
-  const ValueTreeNode* GetChild(size_t index) const noexcept;
+  const ValueTreeNode* GetChild(size_t index) const noexcept {
+    assert(index >= 0 && index < _children.size() && "index is out of range");
+    return _children[index].get();
+  }
 
 private:
   const llvm::Type *_type;
@@ -709,11 +890,20 @@ private:
   std::vector<std::unique_ptr<ValueTreeNode>> _children;
   std::unique_ptr<Pointee> _pointee;
 
-  void Initialize() noexcept;
+  void Initialize() noexcept {
+    InitializePointee();
+    InitializeChildren();
+  }
 
   void InitializeChildren() noexcept;
 
-  void InitializePointee() noexcept;
+  void InitializePointee() noexcept {
+    if (_type->isPointerTy()) {
+      _pointee = std::make_unique<Pointer>(*this);
+    } else {
+      _pointee = std::make_unique<Pointee>(*this);
+    }
+  }
 };
 
 /**
@@ -737,7 +927,13 @@ public:
    * @return the value tree node corresponding to the specified rooted value. If the specified value is not a valid root
    * of a value tree, return nullptr.
    */
-  ValueTreeNode* GetNode(const llvm::Value *value) noexcept;
+  ValueTreeNode* GetNode(const llvm::Value *value) noexcept {
+    auto it = _roots.find(value);
+    if (it == _roots.end()) {
+      return nullptr;
+    }
+    return it->second.get();
+  }
 
   /**
    * Get the value tree node corresponding to the specified rooted value.
@@ -746,7 +942,9 @@ public:
    * @return the value tree node corresponding to the specified rooted value. If the specified value is not a valid root
    * of a value tree, return nullptr.
    */
-  const ValueTreeNode* GetNode(const llvm::Value *value) const noexcept;
+  const ValueTreeNode* GetNode(const llvm::Value *value) const noexcept {
+    return const_cast<ValueTree *>(this)->GetNode(value);
+  }
 
 private:
   const llvm::Module &_module;

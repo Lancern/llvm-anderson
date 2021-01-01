@@ -8,18 +8,6 @@ namespace llvm {
 
 namespace anderson {
 
-Pointee::Pointee(ValueTreeNode &node) noexcept
-  : _node(node)
-{ }
-
-ValueTreeNode* Pointee::node() noexcept {
-  return &_node;
-}
-
-const ValueTreeNode* Pointee::node() const noexcept {
-  return &_node;
-}
-
 bool Pointee::isPointer() const noexcept {
   return _node.isPointer();
 }
