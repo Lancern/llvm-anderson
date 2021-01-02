@@ -10,7 +10,9 @@ namespace anderson {
 
 ValueTree::ValueTree(const llvm::Module &module) noexcept
   : _module(module),
-    _roots()
+    _roots(),
+    _allocaRoots(),
+    _globalRoots()
 {
   for (const auto &globalVariable : module.globals()) {
     _roots[&globalVariable] = std::make_unique<ValueTreeNode>(&globalVariable);
