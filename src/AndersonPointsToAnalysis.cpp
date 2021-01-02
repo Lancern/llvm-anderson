@@ -5,6 +5,7 @@
 #include "llvm-anderson/AndersonPointsToAnalysis.h"
 
 #include <llvm/IR/Instructions.h>
+#include <llvm/IR/IntrinsicInst.h>
 
 #include "PointsToSolver.h"
 
@@ -25,13 +26,46 @@ struct PointerInstructionHandler<llvm::AllocaInst> {
     assert(pointerNode->isPointer());
 
     auto allocatedMemoryNode = solver.GetValueTree()->GetAllocaMemoryNode(&inst);
+    pointerNode->pointer()->AssignedAddressOf(allocatedMemoryNode->pointee());
   }
 };
 
 template <>
 struct PointerInstructionHandler<llvm::CallInst> {
   static void Handle(PointsToSolver &solver, const llvm::CallInst &inst) noexcept {
+    if (llvm::isa<llvm::IntrinsicInst>(inst)) {
+      return;
+    }
 
+    auto function = inst.getFunction();
+
+    for (unsigned i = 0; i < inst.getNumArgOperands(); ++i) {
+      auto param = function->getArg(i);
+      if (!param->getType()->isPointerTy()) {
+        continue;
+      }
+
+      auto arg = inst.getArgOperand(i);
+
+      auto paramNode = solver.GetValueTree()->GetValueNode(param);
+      auto argNode = solver.GetValueTree()->GetValueNode(arg);
+      assert(paramNode->isPointer());
+      assert(argNode->isPointer());
+
+      paramNode->pointer()->AssignedPointer(argNode->pointer());
+    }
+
+    if (!function->getReturnType()->isPointerTy()) {
+      return;
+    }
+
+    auto returnPtrValue = static_cast<const llvm::Value *>(&inst);
+    auto returnPtrNode = solver.GetValueTree()->GetValueNode(returnPtrValue);
+    auto functionReturnValueNode = solver.GetValueTree()->GetFunctionReturnValueNode(function);
+    assert(functionReturnValueNode->isPointer());
+    assert(returnPtrNode->isPointer());
+
+    returnPtrNode->pointer()->AssignedPointer(functionReturnValueNode->pointer());
   }
 };
 
@@ -127,7 +161,18 @@ struct PointerInstructionHandler<llvm::PHINode> {
 template <>
 struct PointerInstructionHandler<llvm::ReturnInst> {
   static void Handle(PointsToSolver &solver, const llvm::ReturnInst &inst) noexcept {
+    auto returnValue = inst.getReturnValue();
+    if (!returnValue->getType()->isPointerTy()) {
+      return;
+    }
 
+    auto function = inst.getFunction();
+    auto returnValueNode = solver.GetValueTree()->GetValueNode(returnValue);
+    auto functionReturnValueNode = solver.GetValueTree()->GetFunctionReturnValueNode(function);
+    assert(returnValueNode->isPointer());
+    assert(functionReturnValueNode->isPointer());
+
+    functionReturnValueNode->pointer()->AssignedPointer(returnValueNode->pointer());
   }
 };
 
