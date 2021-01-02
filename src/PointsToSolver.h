@@ -36,6 +36,8 @@ public:
 private:
   const llvm::Module &_module;
   std::unique_ptr<ValueTree> _valueTree;
+
+  void AddTrivialPointerAssignments() const noexcept;
 };
 
 } // namespace anderson

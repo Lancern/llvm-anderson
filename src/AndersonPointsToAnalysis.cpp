@@ -261,12 +261,15 @@ bool AndersonPointsToAnalysis::runOnModule(llvm::Module &module) {
   return false;  // The module is not modified by this pass.
 }
 
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
 static llvm::RegisterPass<AndersonPointsToAnalysis> RegisterAnderson { // NOLINT(cert-err58-cpp)
   "anderson",
   "Anderson points-to analysis",
   true,
   true
 };
+#pragma clang diagnostic pop
 
 } // namespace anderson
 
