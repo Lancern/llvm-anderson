@@ -59,6 +59,11 @@ class ValueTreeNode;
  */
 enum class PointerAssignmentKind {
   /**
+   * Pointer assignment statement of the form `p = &q`.
+   */
+  AssignedAddressOf,
+
+  /**
    * Pointer assignment statement of the form `p = &q[...]`.
    *
    * Note that `p = q` can be regarded as a special case of this pointer assignment form since it's equivalent to
@@ -82,12 +87,97 @@ enum class PointerAssignmentKind {
  */
 class PointerAssignment {
 public:
+  virtual ~PointerAssignment() noexcept = default;
+
   /**
    * Get the kind of this pointer assignment statement.
    *
    * @return the kind of this pointer assignment statement.
    */
   PointerAssignmentKind kind() const noexcept { return _kind; }
+
+  /**
+   * Get the hash code of this PointerAssignment object.
+   *
+   * @return the hash code of this PointerAssignment object.
+   */
+  virtual size_t GetHashCode() const noexcept {
+    return std::hash<int> { }(static_cast<int>(_kind));
+  }
+
+  virtual bool operator==(const PointerAssignment &rhs) const noexcept {
+    return _kind == rhs._kind;
+  }
+
+  virtual bool operator!=(const PointerAssignment &rhs) const noexcept {
+    return !operator==(rhs);
+  }
+
+protected:
+  /**
+   * Construct a new PointerAssignment object.
+   *
+   * @param kind kind of the pointer assignment statement.
+   */
+  explicit PointerAssignment(PointerAssignmentKind kind) noexcept
+    : _kind(kind)
+  { }
+
+private:
+  PointerAssignmentKind _kind;
+};
+
+/**
+ * Pointer assignment statements of the form `p = &q`.
+ */
+class PointerAssignedAddressOf : public PointerAssignment {
+public:
+  static bool classof(const PointerAssignment *obj) noexcept {
+    return obj->kind() == PointerAssignmentKind::AssignedAddressOf;
+  }
+
+  /**
+   * Construct a new PointerAssignedAddressOf object.
+   *
+   * @param pointee the pointee.
+   */
+  explicit PointerAssignedAddressOf(Pointee *pointee) noexcept
+    : PointerAssignment { PointerAssignmentKind::AssignedAddressOf },
+      _pointee(pointee)
+  { }
+
+  /**
+   * Get the pointee.
+   *
+   * @return the pointee.
+   */
+  Pointee* pointee() noexcept {
+    return _pointee;
+  }
+
+  /**
+   * Get the pointee.
+   *
+   * @return the pointee.
+   */
+  const Pointee* pointee() const noexcept {
+    return _pointee;
+  }
+
+private:
+  Pointee *_pointee;
+};
+
+/**
+ * Abstract base class for pointer assignment whose right hand side operand is a pointer.
+ */
+class PointerAssignedPointerBase : public PointerAssignment {
+public:
+  static bool classof(const PointerAssignment *obj) noexcept {
+    return obj->kind() == PointerAssignmentKind::AssignedElementPtr ||
+      obj->kind() == PointerAssignmentKind::AssignedPointee ||
+      obj->kind() == PointerAssignmentKind::PointeeAssigned;
+  }
 
   /**
    * Get the pointer operand on the right hand side of this pointer assignment statement.
@@ -103,37 +193,33 @@ public:
    */
   const Pointer* pointer() const noexcept { return _pointer; }
 
-  /**
-   * Get the hash code of this PointerAssignment object.
-   *
-   * @return the hash code of this PointerAssignment object.
-   */
-  virtual size_t GetHashCode() const noexcept;
+  size_t GetHashCode() const noexcept override {
+    return std::hash<uintptr_t> { }(reinterpret_cast<uintptr_t>(_pointer) | static_cast<uintptr_t>(kind()));
+  }
 
-  virtual bool operator==(const PointerAssignment &rhs) const noexcept;
-
-  virtual bool operator!=(const PointerAssignment &rhs) const noexcept {
-    return !operator==(rhs);
+  bool operator==(const PointerAssignment &rhs) const noexcept override {
+    if (kind() != rhs.kind()) {
+      return false;
+    }
+    auto casted = llvm::cast<PointerAssignedPointerBase>(rhs);
+    return _pointer == casted._pointer;
   }
 
 protected:
   /**
-   * Construct a new PointerAssignment object.
+   * Construct a new PointerAssignedPointerBase object.
    *
-   * @param kind kind of the pointer assignment statement.
-   * @param pointer the pointer operand on the right hand side of this assignment.
+   * @param kind the pointer assignment kind.
+   * @param pointer the pointer operand on the right hand side of this pointer assignment statement.
    */
-  explicit PointerAssignment(PointerAssignmentKind kind, Pointer *pointer) noexcept
-    : _kind(kind),
+  explicit PointerAssignedPointerBase(PointerAssignmentKind kind, Pointer *pointer) noexcept
+    : PointerAssignment { kind },
       _pointer(pointer)
   {
     assert(pointer && "pointer cannot be null");
   }
 
-  virtual ~PointerAssignment() noexcept = default;
-
 private:
-  PointerAssignmentKind _kind;
   Pointer *_pointer;
 };
 
@@ -200,7 +286,7 @@ private:
 /**
  * Represents a pointer assignment statement of the form `p = &q[...]`.
  */
-class PointerAssignedElementPtr : public PointerAssignment {
+class PointerAssignedElementPtr : public PointerAssignedPointerBase {
 public:
   static bool classof(const PointerAssignment *obj) noexcept {
     return obj->kind() == PointerAssignmentKind::AssignedElementPtr;
@@ -213,7 +299,7 @@ public:
    * @param indexSequence the sequence of pointer index.
    */
   explicit PointerAssignedElementPtr(Pointer *pointer, std::vector<PointerIndex> indexSequence) noexcept
-    : PointerAssignment {PointerAssignmentKind::AssignedElementPtr, pointer },
+    : PointerAssignedPointerBase { PointerAssignmentKind::AssignedElementPtr, pointer },
       _indexSequence(std::move(indexSequence))
   { }
 
@@ -240,7 +326,7 @@ private:
 /**
  * Represent a pointer assignment statement of the form `p = *q`.
  */
-class PointerAssignedPointee : public PointerAssignment {
+class PointerAssignedPointee : public PointerAssignedPointerBase {
 public:
   static bool classof(const PointerAssignment *obj) noexcept {
     return obj->kind() == PointerAssignmentKind::AssignedPointee;
@@ -252,14 +338,14 @@ public:
    * @param pointer the pointer operand on the right hand side of the pointer assignment statement.
    */
   explicit PointerAssignedPointee(Pointer *pointer) noexcept
-    : PointerAssignment { PointerAssignmentKind::AssignedPointee, pointer }
+    : PointerAssignedPointerBase { PointerAssignmentKind::AssignedPointee, pointer }
   { }
 };
 
 /**
  * Represent a pointer assignment statement of the form `*p = q`.
  */
-class PointeeAssignedPointer : public PointerAssignment {
+class PointeeAssignedPointer : public PointerAssignedPointerBase {
 public:
   static bool classof(const PointerAssignment *obj) noexcept {
     return obj->kind() == PointerAssignmentKind::PointeeAssigned;
@@ -271,7 +357,7 @@ public:
    * @param pointer the pointer operand on the right hand side of the pointer assignment statement.
    */
   explicit PointeeAssignedPointer(Pointer *pointer) noexcept
-    : PointerAssignment { PointerAssignmentKind::PointeeAssigned, pointer }
+    : PointerAssignedPointerBase { PointerAssignmentKind::PointeeAssigned, pointer }
   { }
 };
 

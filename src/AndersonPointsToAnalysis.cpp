@@ -18,6 +18,24 @@ template <typename Instruction>
 struct PointerInstructionHandler { };
 
 template <>
+struct PointerInstructionHandler<llvm::AllocaInst> {
+  static void Handle(PointsToSolver &solver, const llvm::AllocaInst &inst) noexcept {
+    auto pointerValue = static_cast<const llvm::Value *>(&inst);
+    auto pointerNode = solver.GetValueTree()->GetValueNode(pointerValue);
+    assert(pointerNode->isPointer());
+
+    auto allocatedMemoryNode = solver.GetValueTree()->GetAllocaMemoryNode(&inst);
+  }
+};
+
+template <>
+struct PointerInstructionHandler<llvm::CallInst> {
+  static void Handle(PointsToSolver &solver, const llvm::CallInst &inst) noexcept {
+
+  }
+};
+
+template <>
 struct PointerInstructionHandler<llvm::ExtractValueInst> {
   static void Handle(PointsToSolver &solver, const llvm::ExtractValueInst &inst) noexcept {
     if (!inst.getType()->isPointerTy()) {
@@ -107,6 +125,13 @@ struct PointerInstructionHandler<llvm::PHINode> {
 };
 
 template <>
+struct PointerInstructionHandler<llvm::ReturnInst> {
+  static void Handle(PointsToSolver &solver, const llvm::ReturnInst &inst) noexcept {
+
+  }
+};
+
+template <>
 struct PointerInstructionHandler<llvm::SelectInst> {
   static void Handle(PointsToSolver &solver, const llvm::SelectInst &inst) noexcept {
     if (!inst.getType()->isPointerTy()) {
@@ -150,10 +175,13 @@ struct PointerInstructionHandler<llvm::StoreInst> {
 };
 
 #define LLVM_POINTER_INST_LIST(H) \
+  H(AllocaInst)                   \
+  H(CallInst)                     \
   H(ExtractValueInst)             \
   H(GetElementPtrInst)            \
   H(LoadInst)                     \
   H(PHINode)                      \
+  H(ReturnInst)                   \
   H(SelectInst)                   \
   H(StoreInst)
 
