@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -46,7 +47,10 @@ struct PolymorphicHasher {
 };
 
 template <typename Container, typename K>
-auto* find_in(Container &container, const K &key) noexcept {
+using IndexResultType = decltype(std::declval<Container>()[std::declval<K>()]);
+
+template <typename Container, typename K>
+auto find_in(Container &container, const K &key) noexcept -> std::remove_reference_t<IndexResultType<Container, K>> * {
   auto it = container.find(key);
   if (it == container.end()) {
     return nullptr;
