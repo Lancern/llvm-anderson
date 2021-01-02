@@ -25,11 +25,11 @@ struct PointerInstructionHandler<llvm::ExtractValueInst> {
     }
 
     auto targetPtrValue = static_cast<const llvm::Value *>(&inst);
-    auto targetPtrNode = solver.GetValueTree()->GetNode(targetPtrValue);
+    auto targetPtrNode = solver.GetValueTree()->GetValueNode(targetPtrValue);
     assert(targetPtrNode->isPointer());
 
     auto sourceValue = inst.getAggregateOperand();
-    auto sourcePtrNode = solver.GetValueTree()->GetNode(sourceValue);
+    auto sourcePtrNode = solver.GetValueTree()->GetValueNode(sourceValue);
     for (auto index : inst.indices()) {
       sourcePtrNode = sourcePtrNode->GetChild(static_cast<size_t>(index));
     }
@@ -43,11 +43,11 @@ template <>
 struct PointerInstructionHandler<llvm::GetElementPtrInst> {
   static void Handle(PointsToSolver &solver, const llvm::GetElementPtrInst &inst) noexcept {
     auto targetPtrValue = static_cast<const llvm::Value *>(&inst);
-    auto targetPtrNode = solver.GetValueTree()->GetNode(targetPtrValue);
+    auto targetPtrNode = solver.GetValueTree()->GetValueNode(targetPtrValue);
     assert(targetPtrNode->isPointer());
 
     auto sourcePtrValue = inst.getPointerOperand();
-    auto sourcePtrNode = solver.GetValueTree()->GetNode(sourcePtrValue);
+    auto sourcePtrNode = solver.GetValueTree()->GetValueNode(sourcePtrValue);
     assert(sourcePtrNode->isPointer());
 
     std::vector<PointerIndex> indexSequence;
@@ -75,8 +75,8 @@ struct PointerInstructionHandler<llvm::LoadInst> {
 
     auto resultPtrValue = static_cast<const llvm::Value *>(&inst);
     auto sourcePtrValue = inst.getPointerOperand();
-    auto resultPtrNode = solver.GetValueTree()->GetNode(resultPtrValue);
-    auto sourcePtrNode = solver.GetValueTree()->GetNode(sourcePtrValue);
+    auto resultPtrNode = solver.GetValueTree()->GetValueNode(resultPtrValue);
+    auto sourcePtrNode = solver.GetValueTree()->GetValueNode(sourcePtrValue);
 
     assert(resultPtrNode->isPointer());
     assert(sourcePtrNode->isPointer());
@@ -93,12 +93,12 @@ struct PointerInstructionHandler<llvm::PHINode> {
     }
 
     auto resultPtrValue = static_cast<const llvm::Value *>(&phi);
-    auto resultPtrNode = solver.GetValueTree()->GetNode(resultPtrValue);
+    auto resultPtrNode = solver.GetValueTree()->GetValueNode(resultPtrValue);
     assert(resultPtrNode->isPointer());
 
     for (const auto &sourcePtrValueUse : phi.incoming_values()) {
       auto sourcePtrValue = sourcePtrValueUse.get();
-      auto sourcePtrNode = solver.GetValueTree()->GetNode(sourcePtrValue);
+      auto sourcePtrNode = solver.GetValueTree()->GetValueNode(sourcePtrValue);
       assert(sourcePtrNode->isPointer());
 
       resultPtrNode->pointer()->AssignedPointer(sourcePtrNode->pointer());
@@ -114,7 +114,7 @@ struct PointerInstructionHandler<llvm::SelectInst> {
     }
 
     auto resultPtrValue = static_cast<const llvm::Value *>(&inst);
-    auto resultPtrNode = solver.GetValueTree()->GetNode(resultPtrValue);
+    auto resultPtrNode = solver.GetValueTree()->GetValueNode(resultPtrValue);
     assert(resultPtrNode->isPointer());
 
     const llvm::Value *sourcePtrValues[2] = {
@@ -122,7 +122,7 @@ struct PointerInstructionHandler<llvm::SelectInst> {
         inst.getFalseValue()
     };
     for (auto sourcePtrValue : sourcePtrValues) {
-      auto sourcePtrNode = solver.GetValueTree()->GetNode(sourcePtrValue);
+      auto sourcePtrNode = solver.GetValueTree()->GetValueNode(sourcePtrValue);
       assert(sourcePtrNode->isPointer());
 
       resultPtrNode->pointer()->AssignedPointer(sourcePtrNode->pointer());
@@ -140,8 +140,8 @@ struct PointerInstructionHandler<llvm::StoreInst> {
 
     auto sourcePtrValue = inst.getValueOperand();
 
-    auto targetPtrNode = solver.GetValueTree()->GetNode(targetPtrValue);
-    auto sourcePtrNode = solver.GetValueTree()->GetNode(sourcePtrValue);
+    auto targetPtrNode = solver.GetValueTree()->GetValueNode(targetPtrValue);
+    auto sourcePtrNode = solver.GetValueTree()->GetValueNode(sourcePtrValue);
     assert(targetPtrNode->isPointer());
     assert(sourcePtrNode->isPointer());
 

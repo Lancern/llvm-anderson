@@ -8,29 +8,41 @@ namespace llvm {
 
 namespace anderson {
 
+template <typename ...Args>
+static std::unique_ptr<ValueTreeNode> CreateNode(size_t &numPointees, size_t &numPointers, Args&&... args) noexcept {
+  auto node = std::make_unique<ValueTreeNode>(std::forward<Args>(args)...);
+  numPointees += node->GetNumPointees();
+  numPointers += node->GetNumPointers();
+  return node;
+}
+
 ValueTree::ValueTree(const llvm::Module &module) noexcept
   : _module(module),
     _roots(),
-    _allocaRoots(),
-    _globalRoots()
+    _allocaMemoryRoots(),
+    _globalMemoryRoots(),
+    _argumentMemoryRoots(),
+    _returnValueRoots(),
+    _numPointees(0),
+    _numPointers(0)
 {
   for (const auto &globalVariable : module.globals()) {
-    _roots[&globalVariable] = std::make_unique<ValueTreeNode>(&globalVariable);
-    _globalRoots[&globalVariable] = std::make_unique<ValueTreeNode>(GlobalMemoryValueTag { }, &globalVariable);
+    _roots[&globalVariable] = CreateNode(_numPointees, _numPointers, &globalVariable);
+    _globalMemoryRoots[&globalVariable] = CreateNode(_numPointees, _numPointers, GlobalMemoryValueTag { }, &globalVariable);
   }
 
   for (const auto &func : module) {
-    _roots[&func] = std::make_unique<ValueTreeNode>(&func);
+    _roots[&func] = CreateNode(_numPointees, _numPointers, &func);
+    _returnValueRoots[&func] = CreateNode(_numPointees, _numPointers, FunctionReturnValueTag { }, &func);
     for (const auto &arg : func.args()) {
-      _roots[&arg] = std::make_unique<ValueTreeNode>(&arg);
+      _roots[&arg] = CreateNode(_numPointees, _numPointers, ArgumentMemoryValueTag { }, &arg);
     }
     for (const auto &bb : func) {
       for (const auto &inst : bb) {
-        _roots[&inst] = std::make_unique<ValueTreeNode>(&inst);
-
+        _roots[&inst] = CreateNode(_numPointees, _numPointers, &inst);
         auto allocaInst = llvm::dyn_cast<llvm::AllocaInst>(&inst);
         if (allocaInst) {
-          _allocaRoots[allocaInst] = std::make_unique<ValueTreeNode>(StackMemoryValueTag { }, allocaInst);
+          _allocaMemoryRoots[allocaInst] = CreateNode(_numPointees, _numPointers, StackMemoryValueTag { }, allocaInst);
         }
       }
     }

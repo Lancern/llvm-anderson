@@ -19,7 +19,8 @@ namespace anderson {
 class PointsToSolver {
 public:
   explicit PointsToSolver(const llvm::Module &module) noexcept
-    : _valueTree(std::make_unique<ValueTree>(module))
+    : _module(module),
+      _valueTree(std::make_unique<ValueTree>(module))
   { }
 
   ValueTree* GetValueTree() const noexcept {
@@ -33,6 +34,7 @@ public:
   void Solve() noexcept;
 
 private:
+  const llvm::Module &_module;
   std::unique_ptr<ValueTree> _valueTree;
 };
 

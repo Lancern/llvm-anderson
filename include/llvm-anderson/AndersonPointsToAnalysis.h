@@ -13,13 +13,15 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
-#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include <llvm/ADT/iterator_range.h>
+#include <llvm/IR/Argument.h>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
@@ -45,18 +47,6 @@ struct PolymorphicHasher {
     return obj.GetHashCode();
   }
 };
-
-template <typename Container, typename K>
-using IndexResultType = decltype(std::declval<Container>()[std::declval<K>()]);
-
-template <typename Container, typename K>
-auto find_in(Container &container, const K &key) noexcept -> std::remove_reference_t<IndexResultType<Container, K>> * {
-  auto it = container.find(key);
-  if (it == container.end()) {
-    return nullptr;
-  }
-  return &it->second;
-}
 
 } // namespace details
 
@@ -702,19 +692,40 @@ enum class ValueKind {
    * Values that are allocated in global memory.
    */
   GlobalMemory,
+
+  /**
+   * Values that are pointees of function arguments.
+   */
+  ArgumentMemory,
+
+  /**
+   * Function return values.
+   */
+  FunctionReturnValue,
 };
 
 /**
- * A tag type that distinguishes `ValueTreeNode::ValueTreeNode(StackMemoryValueTag, const llvm::AllocaInst *)` from
- * `ValueTreeNode::ValueTreeNode(const llvm::Value *)`.
+ * A tag type that distinguishes the `ValueTreeNode::ValueTreeNode(StackMemoryValueTag, const llvm::AllocaInst *)`
+ * constructor.
  */
 struct StackMemoryValueTag { };
 
 /**
- * A tag type that distinguishes `ValueTreeNode::ValueTreeNode(GlobalMemoryValueTag, const llvm::GlobalVariable *)` from
- * `ValueTreeNode::ValueTreeNode(const llvm::Value *)`.
+ * A tag type that distinguishes the `ValueTreeNode::ValueTreeNode(GlobalMemoryValueTag, const llvm::GlobalVariable *)`
+ * constructor.
  */
 struct GlobalMemoryValueTag { };
+
+/**
+ * A tag type that distinguishes the `ValueTreeNode::ValueTreeNode(ArgumentMemoryValueTag, const llvm::Argument *)`
+ * constructor.
+ */
+struct ArgumentMemoryValueTag { };
+
+/**
+ * A tag type that distinguishes the `ValueTreeNode(FunctionReturnValueTag, const llvm::Function *)` constructor.
+ */
+struct FunctionReturnValueTag { };
 
 /**
  * A node in the value tree.
@@ -726,17 +737,7 @@ public:
    *
    * @param value the `llvm::Value` of the new node.
    */
-  explicit ValueTreeNode(const llvm::Value *value) noexcept
-    : _type(value->getType()),
-      _value(value),
-      _kind(ValueKind::Normal),
-      _parent(nullptr),
-      _offset(0),
-      _children()
-  {
-    assert(value && "value cannot be null");
-    Initialize();
-  }
+  explicit ValueTreeNode(const llvm::Value *value) noexcept;
 
   /**
    * Construct a new ValueTreeNode object that represents the value in the stack memory allocated by the specified
@@ -744,17 +745,7 @@ public:
    *
    * @param stackMemoryAllocator the `alloca` instruction that allocates the stack memory.
    */
-  explicit ValueTreeNode(StackMemoryValueTag, const llvm::AllocaInst *stackMemoryAllocator) noexcept
-    : _type(stackMemoryAllocator->getAllocatedType()),
-      _value(stackMemoryAllocator),
-      _kind(ValueKind::StackMemory),
-      _parent(nullptr),
-      _offset(0),
-      _children()
-  {
-    assert(stackMemoryAllocator && "stackMemoryAllocator cannot be null");
-    Initialize();
-  }
+  explicit ValueTreeNode(StackMemoryValueTag, const llvm::AllocaInst *stackMemoryAllocator) noexcept;
 
   /**
    * Construct a new ValueTreeNode object that represents the value in the global memory referred to by the specified
@@ -762,17 +753,22 @@ public:
    *
    * @param globalVariable the global variable that refers to the global memory.
    */
-  explicit ValueTreeNode(GlobalMemoryValueTag, const llvm::GlobalVariable *globalVariable) noexcept
-    : _type(globalVariable->getValueType()),
-      _value(globalVariable),
-      _kind(ValueKind::GlobalMemory),
-      _parent(nullptr),
-      _offset(0),
-      _children()
-  {
-    assert(globalVariable && "globalVariable cannot be null");
-    Initialize();
-  }
+  explicit ValueTreeNode(GlobalMemoryValueTag, const llvm::GlobalVariable *globalVariable) noexcept;
+
+  /**
+   * Construct a new ValueTreeNode object that represents the value in the memory referred to by the specified function
+   * argument.
+   *
+   * @param argument the function argument that refers to the argument memory.
+   */
+  explicit ValueTreeNode(ArgumentMemoryValueTag, const llvm::Argument *argument) noexcept;
+
+  /**
+   * Construct a new ValueTreeNode object that represents the return value of the specified function.
+   *
+   * @param function the function.
+   */
+  explicit ValueTreeNode(FunctionReturnValueTag, const llvm::Function *function) noexcept;
 
   /**
    * Construct a new ValueTreeNode object that represents the sub-object of the specified parent value.
@@ -781,18 +777,7 @@ public:
    * @param parent ValueTreeNode that represents the parent value.
    * @param offset the offset of this sub-object within the parent value.
    */
-  explicit ValueTreeNode(const llvm::Type *type, ValueTreeNode *parent, size_t offset) noexcept
-    : _type(type),
-      _value(nullptr),
-      _kind(parent->_kind),
-      _parent(parent),
-      _offset(offset),
-      _children()
-  {
-    assert(type && "type cannot be null");
-    assert(parent && "parent cannot be null");
-    Initialize();
-  }
+  explicit ValueTreeNode(const llvm::Type *type, ValueTreeNode *parent, size_t offset) noexcept;
 
   NON_COPIABLE_NON_MOVABLE(ValueTreeNode)
 
@@ -825,6 +810,16 @@ public:
   }
 
   /**
+   * Determine whether the value is a normal value. Normal values are either materialized through a `llvm::Value`
+   * object, or a sub-object of another normal value.
+   *
+   * @return whether the value is a normal value.
+   */
+  bool isNormalValue() const noexcept {
+    return _kind == ValueKind::Normal;
+  }
+
+  /**
    * Determine whether this value is within a region of stack allocated memory.
    *
    * @return whether this value is within a region of stack allocated memory.
@@ -840,6 +835,24 @@ public:
    */
   bool isGlobalMemory() const noexcept {
     return _kind == ValueKind::GlobalMemory;
+  }
+
+  /**
+   * Determine whether this value is within a region of function argument memory.
+   *
+   * @return whether this value is within a region of function argument memory.
+   */
+  bool isArgumentMemory() const noexcept {
+    return _kind == ValueKind::ArgumentMemory;
+  }
+
+  /**
+   * Determine whether this value is a function return value.
+   *
+   * @return whether this value is a function return value.
+   */
+  bool isFunctionReturnValue() const noexcept {
+    return _kind == ValueKind::FunctionReturnValue;
   }
 
   /**
@@ -911,12 +924,14 @@ public:
       return _parent->isExternal();
     }
 
-    if (!isGlobal()) {
-      return false;
+    if (_kind == ValueKind::ArgumentMemory) {
+      return true;
+    } else if (_kind == ValueKind::GlobalMemory) {
+      auto globalObject = llvm::cast<llvm::GlobalObject>(_value);
+      return llvm::GlobalValue::isAvailableExternallyLinkage(globalObject->getLinkage());
     }
 
-    auto globalObject = llvm::cast<llvm::GlobalObject>(_value);
-    return llvm::GlobalValue::isAvailableExternallyLinkage(globalObject->getLinkage());
+    return false;
   }
 
   /**
@@ -979,6 +994,34 @@ public:
   }
 
   /**
+   * Get the argument that refers to this argument memory value.
+   *
+   * This function triggers an assertion failure if this value is not an argument memory value.
+   *
+   * @return the argument that refers to this argument memory value.
+   */
+  const llvm::Argument* GetArgument() const noexcept {
+    if (!isRoot()) {
+      return _parent->GetArgument();
+    }
+    return llvm::cast<llvm::Argument>(_value);
+  }
+
+  /**
+   * Get the function from which this value is returned to the caller.
+   *
+   * This function triggers an assertion failure if this value is not a function return value.
+   *
+   * @return the function from which this value is returned to the caller.
+   */
+  const llvm::Function* GetFunction() const noexcept {
+    if (!isRoot()) {
+      return _parent->GetFunction();
+    }
+    return llvm::cast<llvm::Function>(_value);
+  }
+
+  /**
    * Determine whether this node has any child nodes.
    *
    * @return whether this node has any child nodes.
@@ -1022,6 +1065,24 @@ public:
     return _children[index].get();
   }
 
+  /**
+   * Get the number of pointees contained in the value tree rooted by this node.
+   *
+   * @return the number of pointees contained in the value tree rooted by this node.
+   */
+  size_t GetNumPointees() const noexcept {
+    return _numPointees;
+  }
+
+  /**
+   * Get the number of pointers contained in the value tree rooted by this node.
+   *
+   * @return the number of pointers contained in the value tree rooted by this node.
+   */
+  size_t GetNumPointers() const noexcept {
+    return _numPointers;
+  }
+
 private:
   const llvm::Type *_type;
   const llvm::Value *_value;
@@ -1030,6 +1091,8 @@ private:
   size_t _offset;
   std::vector<std::unique_ptr<ValueTreeNode>> _children;
   std::unique_ptr<Pointee> _pointee;
+  size_t _numPointees;
+  size_t _numPointers;
 
   void Initialize() noexcept {
     InitializePointee();
@@ -1062,18 +1125,21 @@ public:
   explicit ValueTree(const llvm::Module &module) noexcept;
 
   /**
-   * Get the value tree node corresponding to the specified rooted value.
+   * Get the number of pointees contained in the value tree.
    *
-   * @param value the rooted value.
-   * @return the value tree node corresponding to the specified rooted value. If the specified value is not a valid root
-   * of a value tree, return nullptr.
+   * @return the number of pointees contained in the value tree.
    */
-  ValueTreeNode* GetNode(const llvm::Value *value) noexcept {
-    auto ptr = details::find_in(_roots, value);
-    if (ptr) {
-      return ptr->get();
-    }
-    return nullptr;
+  size_t GetNumPointees() const noexcept {
+    return _numPointees;
+  }
+
+  /**
+   * Get the number of pointers contained in the value tree.
+   *
+   * @return the number of pointers contained in the value tree.
+   */
+  size_t GetNumPointers() const noexcept {
+    return _numPointers;
   }
 
   /**
@@ -1083,8 +1149,19 @@ public:
    * @return the value tree node corresponding to the specified rooted value. If the specified value is not a valid root
    * of a value tree, return nullptr.
    */
-  const ValueTreeNode* GetNode(const llvm::Value *value) const noexcept {
-    return const_cast<ValueTree *>(this)->GetNode(value);
+  ValueTreeNode* GetValueNode(const llvm::Value *value) noexcept {
+    return find_in(_roots, value);
+  }
+
+  /**
+   * Get the value tree node corresponding to the specified rooted value.
+   *
+   * @param value the rooted value.
+   * @return the value tree node corresponding to the specified rooted value. If the specified value is not a valid root
+   * of a value tree, return nullptr.
+   */
+  const ValueTreeNode* GetValueNode(const llvm::Value *value) const noexcept {
+    return const_cast<ValueTree *>(this)->GetValueNode(value);
   }
 
   /**
@@ -1093,12 +1170,8 @@ public:
    * @param inst the `alloca` instruction that allocates the stack memory.
    * @return the ValueTreeNode corresponding to the stack memory.
    */
-  ValueTreeNode* GetAllocaNode(const llvm::AllocaInst *inst) noexcept {
-    auto ptr = details::find_in(_allocaRoots, inst);
-    if (ptr) {
-      return ptr->get();
-    }
-    return nullptr;
+  ValueTreeNode* GetAllocaMemoryNode(const llvm::AllocaInst *inst) noexcept {
+    return find_in(_allocaMemoryRoots, inst);
   }
 
   /**
@@ -1107,8 +1180,8 @@ public:
    * @param inst the `alloca` instruction that allocates the stack memory.
    * @return the ValueTreeNode corresponding to the stack memory.
    */
-  const ValueTreeNode* GetAllocaNode(const llvm::AllocaInst *inst) const noexcept {
-    return const_cast<ValueTree *>(this)->GetAllocaNode(inst);
+  const ValueTreeNode* GetAllocaMemoryNode(const llvm::AllocaInst *inst) const noexcept {
+    return const_cast<ValueTree *>(this)->GetAllocaMemoryNode(inst);
   }
 
   /**
@@ -1117,12 +1190,8 @@ public:
    * @param variable the global variable pointer.
    * @return the ValueTreeNode corresponding to the global memory.
    */
-  ValueTreeNode* GetGlobalNode(const llvm::GlobalVariable *variable) noexcept {
-    auto ptr = details::find_in(_globalRoots, variable);
-    if (ptr) {
-      return ptr->get();
-    }
-    return nullptr;
+  ValueTreeNode* GetGlobalMemoryNode(const llvm::GlobalVariable *variable) noexcept {
+    return find_in(_globalMemoryRoots, variable);
   }
 
   /**
@@ -1131,15 +1200,73 @@ public:
    * @param variable the global variable pointer.
    * @return the ValueTreeNode corresponding to the global memory.
    */
-  const ValueTreeNode* GetGlobalNode(const llvm::GlobalVariable *variable) const noexcept {
-    return const_cast<ValueTree *>(this)->GetGlobalNode(variable);
+  const ValueTreeNode* GetGlobalMemoryNode(const llvm::GlobalVariable *variable) const noexcept {
+    return const_cast<ValueTree *>(this)->GetGlobalMemoryNode(variable);
+  }
+
+  /**
+   * Get the ValueTreeNode corresponding to the argument memory referred to by the specified argument.
+   *
+   * @param argument the argument.
+   * @return the ValueTreeNode corresponding to the argument memory referred to by the specified argument.
+   */
+  ValueTreeNode* GetArgumentMemoryNode(const llvm::Argument *argument) noexcept {
+    return find_in(_argumentMemoryRoots, argument);
+  }
+
+  /**
+   * Get the ValueTreeNode corresponding to the argument memory referred to by the specified argument.
+   *
+   * @param argument the argument.
+   * @return the ValueTreeNode corresponding to the argument memory referred to by the specified argument.
+   */
+  const ValueTreeNode* GetArgumentMemoryNode(const llvm::Argument *argument) const noexcept {
+    return const_cast<ValueTree *>(this)->GetArgumentMemoryNode(argument);
+  }
+
+  /**
+   * Get the ValueTreeNode corresponding to the return value of the specified function.
+   *
+   * @param function the function.
+   * @return the ValueTreeNode corresponding to the return value of the specified function.
+   */
+  ValueTreeNode* GetFunctionReturnValueNode(const llvm::Function *function) noexcept {
+    return find_in(_returnValueRoots, function);
+  }
+
+  /**
+   * Get the ValueTreeNode corresponding to the return value of the specified function.
+   *
+   * @param function the function.
+   * @return the ValueTreeNode corresponding to the return value of the specified function.
+   */
+  const ValueTreeNode* GetFunctionReturnValueNode(const llvm::Function *function) const noexcept {
+    return const_cast<ValueTree *>(this)->GetFunctionReturnValueNode(function);
   }
 
 private:
   const llvm::Module &_module;
   std::unordered_map<const llvm::Value *, std::unique_ptr<ValueTreeNode>> _roots;
-  std::unordered_map<const llvm::AllocaInst *, std::unique_ptr<ValueTreeNode>> _allocaRoots;
-  std::unordered_map<const llvm::GlobalVariable *, std::unique_ptr<ValueTreeNode>> _globalRoots;
+  std::unordered_map<const llvm::AllocaInst *, std::unique_ptr<ValueTreeNode>> _allocaMemoryRoots;
+  std::unordered_map<const llvm::GlobalVariable *, std::unique_ptr<ValueTreeNode>> _globalMemoryRoots;
+  std::unordered_map<const llvm::Argument *, std::unique_ptr<ValueTreeNode>> _argumentMemoryRoots;
+  std::unordered_map<const llvm::Function *, std::unique_ptr<ValueTreeNode>> _returnValueRoots;
+  size_t _numPointees;
+  size_t _numPointers;
+
+  template <
+      typename K, typename V,
+      typename Hasher, typename Comparer, typename Allocator,
+      typename Deleter>
+  static V* find_in(
+      std::unordered_map<K, std::unique_ptr<V, Deleter>, Hasher, Comparer, Allocator> &map,
+      const K &key) noexcept {
+    auto it = map.find(key);
+    if (it == map.end()) {
+      return nullptr;
+    }
+    return it->second.get();
+  }
 };
 
 /**
