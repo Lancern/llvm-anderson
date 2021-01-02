@@ -16,6 +16,7 @@ ValueTree::ValueTree(const llvm::Module &module) noexcept
 {
   for (const auto &globalVariable : module.globals()) {
     _roots[&globalVariable] = std::make_unique<ValueTreeNode>(&globalVariable);
+    _globalRoots[&globalVariable] = std::make_unique<ValueTreeNode>(GlobalMemoryValueTag { }, &globalVariable);
   }
 
   for (const auto &func : module) {
@@ -26,6 +27,11 @@ ValueTree::ValueTree(const llvm::Module &module) noexcept
     for (const auto &bb : func) {
       for (const auto &inst : bb) {
         _roots[&inst] = std::make_unique<ValueTreeNode>(&inst);
+
+        auto allocaInst = llvm::dyn_cast<llvm::AllocaInst>(&inst);
+        if (allocaInst) {
+          _allocaRoots[allocaInst] = std::make_unique<ValueTreeNode>(StackMemoryValueTag { }, allocaInst);
+        }
       }
     }
   }

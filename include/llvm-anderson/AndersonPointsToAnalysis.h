@@ -683,11 +683,38 @@ private:
   PointeeSet _pointees;
 };
 
+/**
+ * Value kinds.
+ */
 enum class ValueKind {
+  /**
+   * Normal value. Normal values are either materialized through a `llvm::Value` object, or a sub-object of another
+   * normal value.
+   */
   Normal,
+
+  /**
+   * Values that are allocated in stack memory.
+   */
   StackMemory,
+
+  /**
+   * Values that are allocated in global memory.
+   */
   GlobalMemory,
 };
+
+/**
+ * A tag type that distinguishes `ValueTreeNode::ValueTreeNode(StackMemoryValueTag, const llvm::AllocaInst *)` from
+ * `ValueTreeNode::ValueTreeNode(const llvm::Value *)`.
+ */
+struct StackMemoryValueTag { };
+
+/**
+ * A tag type that distinguishes `ValueTreeNode::ValueTreeNode(GlobalMemoryValueTag, const llvm::GlobalVariable *)` from
+ * `ValueTreeNode::ValueTreeNode(const llvm::Value *)`.
+ */
+struct GlobalMemoryValueTag { };
 
 /**
  * A node in the value tree.
@@ -711,7 +738,13 @@ public:
     Initialize();
   }
 
-  explicit ValueTreeNode(const llvm::AllocaInst *stackMemoryAllocator) noexcept
+  /**
+   * Construct a new ValueTreeNode object that represents the value in the stack memory allocated by the specified
+   * `alloca` instruction.
+   *
+   * @param stackMemoryAllocator the `alloca` instruction that allocates the stack memory.
+   */
+  explicit ValueTreeNode(StackMemoryValueTag, const llvm::AllocaInst *stackMemoryAllocator) noexcept
     : _type(stackMemoryAllocator->getAllocatedType()),
       _value(stackMemoryAllocator),
       _kind(ValueKind::StackMemory),
@@ -723,7 +756,13 @@ public:
     Initialize();
   }
 
-  explicit ValueTreeNode(const llvm::GlobalVariable *globalVariable) noexcept
+  /**
+   * Construct a new ValueTreeNode object that represents the value in the global memory referred to by the specified
+   * global variable.
+   *
+   * @param globalVariable the global variable that refers to the global memory.
+   */
+  explicit ValueTreeNode(GlobalMemoryValueTag, const llvm::GlobalVariable *globalVariable) noexcept
     : _type(globalVariable->getValueType()),
       _value(globalVariable),
       _kind(ValueKind::GlobalMemory),
