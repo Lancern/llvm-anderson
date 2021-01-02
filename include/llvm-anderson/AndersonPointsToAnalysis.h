@@ -694,6 +694,16 @@ public:
   NON_COPIABLE_NON_MOVABLE(Pointer)
 
   /**
+   * Specify that this pointer is assigned to the address of the specified pointee in the program.
+   *
+   * @param pointee the pointee.
+   */
+  void AssignedAddressOf(Pointee *pointee) noexcept {
+    assert(pointee && "pointee cannot be null");
+    _assignedAddressOf.emplace(pointee);
+  }
+
+  /**
    * Specify that this pointer is assigned to the specified pointer somewhere in the program.
    *
    * @param pointer the pointer on the right hand side of the pointer assignment.
@@ -753,6 +763,7 @@ public:
   }
 
 private:
+  std::unordered_set<PointerAssignedAddressOf, details::PolymorphicHasher<PointerAssignedAddressOf>> _assignedAddressOf;
   std::unordered_set<PointerAssignedElementPtr, details::PolymorphicHasher<PointerAssignedElementPtr>> _assignedElementPtr;
   std::unordered_set<PointerAssignedPointee, details::PolymorphicHasher<PointerAssignedPointee>> _assignedPointee;
   std::unordered_set<PointeeAssignedPointer, details::PolymorphicHasher<PointeeAssignedPointer>> _pointeeAssigned;
