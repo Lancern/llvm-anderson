@@ -34,10 +34,20 @@ public:
   void Solve() noexcept;
 
 private:
+  static bool RelaxNode(ValueTreeNode &node) noexcept;
+
+  static bool RelaxAssignedPointee(Pointer *pointer, const PointerAssignedPointee &edge) noexcept;
+
+  static bool RelaxAssignedElementPtr(Pointer *pointer, const PointerAssignedElementPtr &edge) noexcept;
+
+  static bool RelaxPointeeAssigned(Pointer *pointer, const PointeeAssignedPointer &edge) noexcept;
+
   const llvm::Module &_module;
   std::unique_ptr<ValueTree> _valueTree;
 
   void AddTrivialPointerAssignments() const noexcept;
+
+  void RelaxPointsToConstraints() const noexcept;
 };
 
 } // namespace anderson

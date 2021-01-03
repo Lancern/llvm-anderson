@@ -151,16 +151,7 @@ public:
    *
    * @return the pointee.
    */
-  Pointee* pointee() noexcept {
-    return _pointee;
-  }
-
-  /**
-   * Get the pointee.
-   *
-   * @return the pointee.
-   */
-  const Pointee* pointee() const noexcept {
+  Pointee* pointee() const noexcept {
     return _pointee;
   }
 
@@ -184,14 +175,7 @@ public:
    *
    * @return the pointer operand on the right hand side of this pointer assignment statement.
    */
-  Pointer* pointer() noexcept { return _pointer; }
-
-  /**
-   * Get the pointer operand on the right hand side of this pointer assignment statement.
-   *
-   * @return the pointer operand on the right hand side of this pointer assignment statement.
-   */
-  const Pointer* pointer() const noexcept { return _pointer; }
+  Pointer* pointer() const noexcept { return _pointer; }
 
   size_t GetHashCode() const noexcept override {
     return std::hash<uintptr_t> { }(reinterpret_cast<uintptr_t>(_pointer) | static_cast<uintptr_t>(kind()));
@@ -313,6 +297,18 @@ public:
       _indexSequence.cbegin(),
       _indexSequence.cend()
     };
+  }
+
+  /**
+   * Determine whether this pointer assignment is a trivial assignment, which has the form of `p = q`.
+   *
+   * @return whether this pointer assignment is a trivial assignment.
+   */
+  bool isTrivialAssignment() const noexcept {
+    if (_indexSequence.empty()) {
+      return true;
+    }
+    return _indexSequence.size() == 1 && _indexSequence[0].index() == 0;
   }
 
   size_t GetHashCode() const noexcept final;
@@ -638,16 +634,7 @@ public:
    *
    * @return the location of this pointee in the value tree.
    */
-  ValueTreeNode* node() noexcept {
-    return &_node;
-  }
-
-  /**
-   * Get the location of this pointee in the value tree.
-   *
-   * @return the location of this pointee in the value tree.
-   */
-  const ValueTreeNode* node() const noexcept {
+  ValueTreeNode* node() const noexcept {
     return &_node;
   }
 
@@ -664,6 +651,28 @@ public:
    * @return whether this pointee is defined outside of the current module.
    */
   bool isExternal() const noexcept;
+
+  /**
+   * Cast this Pointee object to Pointer.
+   *
+   * This function triggers an assertion failure if this Pointee object is not a pointer.
+   *
+   * @return the casted Pointer object.
+   */
+  Pointer* pointer() noexcept {
+    return llvm::cast<Pointer>(this);
+  }
+
+  /**
+   * Cast this Pointee object to Pointer.
+   *
+   * This function triggers an assertion failure if this Pointee object is not a pointer.
+   *
+   * @return the casted Pointer object.
+   */
+  const Pointer* pointer() const noexcept {
+    return llvm::cast<Pointer>(this);
+  }
 
 private:
   ValueTreeNode &_node;
@@ -697,19 +706,21 @@ public:
    * Specify that this pointer is assigned to the address of the specified pointee in the program.
    *
    * @param pointee the pointee.
+   * @return whether the specified constraint is fresh and has been added to the constraints list.
    */
-  void AssignedAddressOf(Pointee *pointee) noexcept {
+  bool AssignedAddressOf(Pointee *pointee) noexcept {
     assert(pointee && "pointee cannot be null");
-    _assignedAddressOf.emplace(pointee);
+    return _assignedAddressOf.emplace(pointee).second;
   }
 
   /**
    * Specify that this pointer is assigned to the specified pointer somewhere in the program.
    *
    * @param pointer the pointer on the right hand side of the pointer assignment.
+   * @return whether the specified constraint is fresh and has been added to the constraints list.
    */
-  void AssignedPointer(Pointer *pointer) noexcept {
-    AssignedElementPtr(pointer, { PointerIndex { 0 } });
+  bool AssignedPointer(Pointer *pointer) noexcept {
+    return AssignedElementPtr(pointer, { PointerIndex { 0 } });
   }
 
   /**
@@ -718,30 +729,33 @@ public:
    *
    * @param pointer the pointer on the right hand side of the pointer assignment.
    * @param indexSequence the pointer index sequence.
+   * @return whether the specified constraint is fresh and has been added to the constraints list.
    */
-  void AssignedElementPtr(Pointer *pointer, std::vector<PointerIndex> indexSequence) noexcept {
+  bool AssignedElementPtr(Pointer *pointer, std::vector<PointerIndex> indexSequence) noexcept {
     assert(pointer && "pointer cannot be null");
-    _assignedElementPtr.emplace(pointer, std::move(indexSequence));
+    return _assignedElementPtr.emplace(pointer, std::move(indexSequence)).second;
   }
 
   /**
    * Specify that this pointer is assigned to the pointee of the specified pointer.
    *
    * @param pointer the pointer on the right hand side of the pointer assignment.
+   * @return whether the specified constraint is fresh and has been added to the constraints list.
    */
-  void AssignedPointee(Pointer *pointer) noexcept {
+  bool AssignedPointee(Pointer *pointer) noexcept {
     assert(pointer && "pointer cannot be null");
-    _assignedPointee.emplace(pointer);
+    return _assignedPointee.emplace(pointer).second;
   }
 
   /**
    * Specify that the pointee of this pointer is assigned to the specified pointer.
    *
    * @param pointer the pointer on the right hand side of the pointer assignment.
+   * @return whether the specified constraint is fresh and has been added to the constraints list.
    */
-  void PointeeAssigned(Pointer *pointer) noexcept {
+  bool PointeeAssigned(Pointer *pointer) noexcept {
     assert(pointer && "pointer cannot be null");
-    _pointeeAssigned.emplace(pointer);
+    return _pointeeAssigned.emplace(pointer).second;
   }
 
   /**
@@ -1085,16 +1099,7 @@ public:
    *
    * @return the Pointee object connected to this node.
    */
-  Pointee* pointee() noexcept {
-    return _pointee.get();
-  }
-
-  /**
-   * Get the Pointee object connected to this node.
-   *
-   * @return the Pointee object connected to this node.
-   */
-  const Pointee* pointee() const noexcept {
+  Pointee* pointee() const noexcept {
     return _pointee.get();
   }
 
@@ -1155,18 +1160,7 @@ public:
    *
    * @return the pointer object connected to this node.
    */
-  Pointer* pointer() noexcept {
-    return llvm::cast<Pointer>(pointee());
-  }
-
-  /**
-   * Get the Pointer object connected to this node.
-   *
-   * If this node does not represent a pointer value, this function triggers an assertion failure.
-   *
-   * @return the pointer object connected to this node.
-   */
-  const Pointer* pointer() const noexcept {
+  Pointer* pointer() const noexcept {
     return llvm::cast<Pointer>(pointee());
   }
 
@@ -1286,6 +1280,31 @@ public:
    */
   size_t GetNumPointers() const noexcept {
     return _numPointers;
+  }
+
+  /**
+   * Visit the value tree rooted by this node in pre-order with the specified visitor.
+   *
+   * The visitor should be a function object that takes a single argument of type `ValueTreeNode &`, and returns a
+   * boolean value indicating whether the visit should proceed.
+   *
+   * @tparam Visitor type of the visitor.
+   * @param visitor the visitor.
+   * @return whether all nodes in the value tree are visited and the visitor does not return a false value.
+   */
+  template <typename Visitor>
+  bool Visit(Visitor &&visitor) noexcept {
+    if (!visitor(*this)) {
+      return false;
+    }
+
+    for (const auto &child : _children) {
+      if (!child->Visit(visitor)) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
 private:
@@ -1449,6 +1468,91 @@ public:
     return const_cast<ValueTree *>(this)->GetFunctionReturnValueNode(function);
   }
 
+  /**
+   * Get the number of value roots.
+   *
+   * @return the number of value roots.
+   */
+  size_t GetNumValueRoots() const noexcept {
+    return _roots.size();
+  }
+
+  /**
+   * Get the number of stack allocated memory roots.
+   *
+   * @return the number of stack allocated memory roots.
+   */
+  size_t GetNumAllocaMemoryRoots() const noexcept {
+    return _allocaMemoryRoots.size();
+  }
+
+  /**
+   * Get the number of global memory roots.
+   *
+   * @return the number of global memory roots.
+   */
+  size_t GetNumGlobalMemoryRoots() const noexcept {
+    return _globalMemoryRoots.size();
+  }
+
+  /**
+   * Get the number of argument memory roots.
+   *
+   * @return the number of argument memory roots.
+   */
+  size_t GetNumArgumentMemoryRoots() const noexcept {
+    return _argumentMemoryRoots.size();
+  }
+
+  /**
+   * Get the number of return value memory roots.
+   *
+   * @return the number of return value memory roots.
+   */
+  size_t GetNumReturnValueRoots() const noexcept {
+    return _returnValueRoots.size();
+  }
+
+  /**
+   * Visit all individual value tree nodes.
+   *
+   * The visitor should be a function object that takes a single argument of type `const ValueTreeNode &` and returns a
+   * boolean value indicating whether the traversal should proceed.
+   *
+   * @tparam Visitor the type of the visitor.
+   * @param visitor the visitor.
+   * @return whether all value tree nodes have been visited and the visitor does not return a false value.
+   */
+  template <typename Visitor>
+  bool Visit(Visitor &&visitor) noexcept {
+    for (const auto &r : _roots) {
+      if (!r.second->Visit(visitor)) {
+        return false;
+      }
+    }
+    for (const auto &r : _allocaMemoryRoots) {
+      if (!r.second->Visit(visitor)) {
+        return false;
+      }
+    }
+    for (const auto &r : _globalMemoryRoots) {
+      if (!r.second->Visit(visitor)) {
+        return false;
+      }
+    }
+    for (const auto &r : _argumentMemoryRoots) {
+      if (!r.second->Visit(visitor)) {
+        return false;
+      }
+    }
+    for (const auto &r : _returnValueRoots) {
+      if (!r.second->Visit(visitor)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
 private:
   const llvm::Module &_module;
   std::unordered_map<const llvm::Value *, std::unique_ptr<ValueTreeNode>> _roots;
@@ -1498,17 +1602,7 @@ public:
    *
    * @return the value tree which contains analysis result.
    */
-  ValueTree* GetValueTree() noexcept {
-    assert(_valueTree && "The analysis has not been run");
-    return _valueTree.get();
-  }
-
-  /**
-   * Get the value tree which contains analysis result.
-   *
-   * @return the value tree which contains analysis result.
-   */
-  const ValueTree* GetValueTree() const noexcept {
+  ValueTree* GetValueTree() const noexcept {
     assert(_valueTree && "The analysis has not been run");
     return _valueTree.get();
   }
