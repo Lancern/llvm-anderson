@@ -12,6 +12,7 @@
 #include <cassert>
 #include <cstddef>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -374,6 +375,12 @@ public:
      */
     using inner_iterator = typename std::unordered_set<Pointee *>::iterator;
 
+    using difference_type = void;
+    using value_type = Pointee *;
+    using reference = Pointee *;
+    using pointer = void;
+    using iterator_category = std::input_iterator_tag;
+
     /**
      * Construct a new iterator object from the given inner iterator.
      *
@@ -421,6 +428,12 @@ public:
      * Type of the inner iterator.
      */
     using inner_iterator = typename std::unordered_set<Pointee *>::const_iterator;
+
+    using difference_type = void;
+    using value_type = const Pointee *;
+    using reference = const Pointee *;
+    using pointer = void;
+    using iterator_category = std::input_iterator_tag;
 
     /**
      * Construct a new const_iterator object from the given inner iterator.
@@ -555,7 +568,7 @@ public:
    * @return whether the specified set is a subset of this set.
    */
   bool isSubset(const PointeeSet &another) const noexcept {
-    return std::all_of(another.begin(), another.end(), [this](const Pointee *anotherElement) {
+    return std::all_of(another.begin(), another.end(), [this](const Pointee *anotherElement) noexcept {
       return count(anotherElement) == 1;
     });
   }
@@ -643,14 +656,14 @@ public:
    *
    * @return whether this pointee is a pointer.
    */
-  bool isPointer() const noexcept;
+  inline bool isPointer() const noexcept;
 
   /**
    * Determine whether this pointee is defined outside of the current module.
    *
    * @return whether this pointee is defined outside of the current module.
    */
-  bool isExternal() const noexcept;
+  inline bool isExternal() const noexcept;
 
   /**
    * Cast this Pointee object to Pointer.
@@ -1611,11 +1624,11 @@ private:
   std::unique_ptr<ValueTree> _valueTree;
 };
 
-bool Pointee::isPointer() const noexcept {
+inline bool Pointee::isPointer() const noexcept {
   return _node.isPointer();
 }
 
-bool Pointee::isExternal() const noexcept {
+inline bool Pointee::isExternal() const noexcept {
   return _node.isExternal();
 }
 
