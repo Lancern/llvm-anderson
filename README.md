@@ -6,6 +6,9 @@ algorithm, namely
 [Anderson algorithm](https://en.wikipedia.org/w/index.php?title=Andersen%27s_algorithm&action=edit&redlink=1),
 on the LLVM compiler platform.
 
+> Notes: This is a toy project. It's not well tested and corner cases are poorly considered.
+> Use it at your own risk!
+
 ## Build
 
 ### Prerequisites
