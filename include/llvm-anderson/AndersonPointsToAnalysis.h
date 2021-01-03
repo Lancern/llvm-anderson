@@ -762,6 +762,114 @@ public:
     return _pointees;
   }
 
+  /**
+   * Get the number of PointerAssignedAddressOf constraints on this pointer.
+   *
+   * @return the number of PointerAssignedAddressOf constraints on this pointer.
+   */
+  size_t GetNumAssignedAddressOf() const noexcept {
+    return _assignedAddressOf.size();
+  }
+
+  /**
+   * Get an iterator range over all PointerAssignedAddressOf constraints on this pointer.
+   *
+   * @return an iterator range over all PointerAssignedAddressOf constraints on this pointer.
+   */
+  auto assigned_address_of() noexcept {
+    return llvm::iterator_range<decltype(_assignedAddressOf)::iterator> { _assignedAddressOf };
+  }
+
+  /**
+   * Get an iterator range over all PointerAssignedAddressOf constraints on this pointer.
+   *
+   * @return an iterator range over all PointerAssignedAddressOf constraints on this pointer.
+   */
+  auto assigned_address_of() const noexcept {
+    return llvm::iterator_range<decltype(_assignedAddressOf)::const_iterator> { _assignedAddressOf };
+  }
+
+  /**
+   * Get the number of PointerAssignedElementPtr constraints on this pointer.
+   *
+   * @return the number of PointerAssignedElementPtr constraints on this pointer.
+   */
+  size_t GetNumAssignedElementPtr() const noexcept {
+    return _assignedElementPtr.size();
+  }
+
+  /**
+   * Get an iterator range over all PointerAssignedElementPtr constraints on this pointer.
+   *
+   * @return an iterator range over all PointerAssignedElementPtr constraints on this pointer.
+   */
+  auto assigned_element_ptr() noexcept {
+    return llvm::iterator_range<decltype(_assignedElementPtr)::iterator> { _assignedElementPtr };
+  }
+
+  /**
+   * Get an iterator range over all PointerAssignedElementPtr constraints on this pointer.
+   *
+   * @return an iterator range over all PointerAssignedElementPtr constraints on this pointer.
+   */
+  auto assigned_element_ptr() const noexcept {
+    return llvm::iterator_range<decltype(_assignedElementPtr)::const_iterator> { _assignedElementPtr };
+  }
+
+  /**
+   * Get the number of PointerAssignedPointee constraints on this pointer.
+   *
+   * @return the number of PointerAssignedPointee constraints on this pointer.
+   */
+  size_t GetNumAssignedPointee() const noexcept {
+    return _assignedPointee.size();
+  }
+
+  /**
+   * Get an iterator range over all PointerAssignedPointee constraints on this pointer.
+   *
+   * @return an iterator range over all PointerAssignedPointee constraints on this pointer.
+   */
+  auto assigned_pointee() noexcept {
+    return llvm::iterator_range<decltype(_assignedPointee)::iterator> { _assignedPointee };
+  }
+
+  /**
+   * Get an iterator range over all PointerAssignedPointee constraints on this pointer.
+   *
+   * @return an iterator range over all PointerAssignedPointee constraints on this pointer.
+   */
+  auto assigned_pointee() const noexcept {
+    return llvm::iterator_range<decltype(_assignedPointee)::const_iterator> { _assignedPointee };
+  }
+
+  /**
+   * Get the number of PointeeAssignedPointer constraints on this pointer.
+   *
+   * @return the number of PointeeAssignedPointer constraints on this pointer.
+   */
+  size_t GetNumPointeeAssigned() const noexcept {
+    return _pointeeAssigned.size();
+  }
+
+  /**
+   * Get an iterator range over all PointeeAssignedPointer constraints on this pointer.
+   *
+   * @return an iterator range over all PointeeAssignedPointer constraints on this pointer.
+   */
+  auto pointee_assigned() noexcept {
+    return llvm::iterator_range<decltype(_pointeeAssigned)::iterator> { _pointeeAssigned };
+  }
+
+  /**
+   * Get an iterator range over all PointeeAssignedPointer constraints on this pointer.
+   *
+   * @return an iterator range over all PointeeAssignedPointer constraints on this pointer.
+   */
+  auto pointee_assigned() const noexcept {
+    return llvm::iterator_range<decltype(_pointeeAssigned)::const_iterator> { _pointeeAssigned };
+  }
+
 private:
   std::unordered_set<PointerAssignedAddressOf, details::PolymorphicHasher<PointerAssignedAddressOf>> _assignedAddressOf;
   std::unordered_set<PointerAssignedElementPtr, details::PolymorphicHasher<PointerAssignedElementPtr>> _assignedElementPtr;
